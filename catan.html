@@ -140,8 +140,16 @@ td.nm{text-align:right;font-weight:600;white-space:nowrap}
 <div id="stage" hidden>
   <div class="canvasBox"><canvas id="view"></canvas></div>
   <div class="counts" id="counts"></div>
+  <div class="fixrow" id="desertRow">
+    <span style="align-self:center;font-size:14px;color:var(--dim);font-weight:600">الصحراء في خريطتك:</span>
+    <button type="button" class="chip on" id="dNo">🚫 ما فيها صحراء</button>
+    <button type="button" class="chip" id="dYes">🏜️ فيها صحراء بدون رقم</button>
+  </div>
   <div class="note" id="fixhint">لو نوع أي بلاطة غلط: <b>اضغط عليها</b> ثم اختر النوع الصحيح من الأسفل.</div>
   <div class="fixrow" id="chips"></div>
+  <div class="minirow" id="applyRow" hidden>
+    <button class="mini" id="bApply"></button>
+  </div>
   <div class="minirow">
     <button class="mini" id="bShuffle" disabled>🎲 جرّب توزيعاً آخر</button>
     <button class="mini" id="bEye">👁️ إخفاء الأسماء</button>
@@ -213,7 +221,8 @@ var TERRAINS = [
   { id:'wood',  name:'شجر',   css:'#2f6b3a',
     refs:[[47,107,58],[31,81,48],[59,125,67],[36,92,46],[26,74,40],[45,95,55]] },
   { id:'brick', name:'طوب',   css:'#c05a35',
-    refs:[[192,90,53],[168,70,42],[210,112,63],[142,59,34],[176,84,52],[198,106,72]] },
+    refs:[[192,90,53],[168,70,42],[210,112,63],[142,59,34],[176,84,52],[198,106,72],
+          [205,170,120],[196,158,110],[186,146,102],[214,178,130]] },
   { id:'wheat', name:'قمح',   css:'#e8c24a',
     refs:[[232,194,74],[242,210,100],[217,173,53],[245,221,138],[228,182,60],[222,186,86]] },
   { id:'stone', name:'حجر',   css:'#8b9196',
@@ -221,7 +230,8 @@ var TERRAINS = [
   { id:'sheep', name:'خرفان', css:'#8fc24a',
     refs:[[143,194,74],[168,212,95],[127,184,63],[181,217,138],[154,201,88],[137,190,104]] },
   { id:'desert',name:'صحراء', css:'#e2d1a2',
-    refs:[[226,209,162],[216,197,142],[238,223,184],[203,183,131],[229,214,175],[222,205,158]] }
+    refs:[[226,209,162],[216,197,142],[238,223,184],[203,183,131],[229,214,175],[222,205,158],
+          [243,241,236],[250,249,245],[232,230,224],[238,236,228]] }
 ];
 var TERRAIN_IDS = TERRAINS.map(function (t) { return t.id; });
 function terrainById(id){ for(var i=0;i<TERRAINS.length;i++) if(TERRAINS[i].id===id) return TERRAINS[i]; return null; }
@@ -504,7 +514,7 @@ function sampleColor(img, cx, cy, rIn, rOut, skipMask) {
   var x0 = Math.max(0, Math.floor(cx - rOut)), x1 = Math.min(W-1, Math.ceil(cx + rOut));
   var y0 = Math.max(0, Math.floor(cy - rOut)), y1 = Math.min(H-1, Math.ceil(cy + rOut));
   var rs = [], gs = [], bs = [], total = 0;
-  var step = Math.max(1, Math.floor(rOut / 22));
+  var step = Math.max(1, Math.floor(rOut / 34));
   for (var y = y0; y <= y1; y += step) {
     for (var x = x0; x <= x1; x += step) {
       var dx = x - cx, dy = y - cy, dist = Math.sqrt(dx*dx + dy*dy);
@@ -611,7 +621,8 @@ function absCost(f, tIdx) {
   else if (id === 'wood')   c = hueDist(f.H, 118) / 7 + Math.max(0, f.Vn - 0.65) * 40 + Math.max(0, 0.14 - f.S) * 30;
   else if (id === 'sheep')  c = hueDist(f.H, 95) / 7 + Math.max(0, 0.60 - f.Vn) * 35 + Math.max(0, 0.14 - f.S) * 30;
   else if (id === 'stone')  c = Math.max(0, f.S - 0.22) * 95 + Math.abs(f.Vn - 0.68) * 14;
-  else if (id === 'desert') c = hueDist(f.H, 42) / 5 + Math.max(0, f.S - 0.42) * 55 + Math.max(0, 0.75 - f.Vn) * 35;
+  else if (id === 'desert') c = hueDist(f.H, 42) / 5 * Math.min(1, f.S / 0.22) +
+                                 Math.max(0, f.S - 0.42) * 55 + Math.max(0, 0.75 - f.Vn) * 35;
   return c + terrainDistance(f.labN, tIdx) * 0.35;
 }
 /* مقارنات نسبية: تحسم التشابه بين الأخضرين وبين القمح والصحراء مهما اختلف أسلوب الرسم */
@@ -629,14 +640,21 @@ function relCost(feats, asg) {
       if (by[others[i]] && by.stone.S > by[others[i]].S) c += 16;
     }
   }
-  if (by.desert) c += (1 - by.desert.noTok) * 30 - by.desert.noTok * 22;
+  if (by.desert) {
+    /* الصحراء في كاتان هي البلاطة التي بلا رقم — وجود رقم قديم ينفيها قطعاً */
+    if (by.desert.noTok < 0.5) c += 400;
+    else c -= by.desert.noTok * 40;
+  }
   return c;
 }
 /* أفضل إسناد بحيث لا تتكرر التضاريس، مع حساب التكاليف المطلقة والنسبية معاً */
-function chooseLabels(feats) {
+function chooseLabels(feats, allowDesert) {
   var k = feats.length, best = null, bestC = 1e18;
   var used = new Array(TERRAINS.length).fill(false);
   var cur = new Array(k).fill(-1);
+  if (allowDesert === false) {
+    for (var z = 0; z < TERRAINS.length; z++) if (TERRAINS[z].id === 'desert') used[z] = true;
+  }
   (function rec(i, acc) {
     if (acc >= bestC) return;
     if (i === k) {
@@ -653,7 +671,7 @@ function chooseLabels(feats) {
   })(0, 0);
   return best;
 }
-function classifyTiles(img, tiles, d, tokenMask, medTokenR) {
+function classifyTiles(img, tiles, d, tokenMask, medTokenR, noDesert) {
   var i, labs = [], rgbs = [];
   for (i = 0; i < tiles.length; i++) {
     var tr = tiles[i].tokenR || medTokenR || d * 0.24;
@@ -671,7 +689,12 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR) {
   var idxs = [], L = [];
   for (i = 0; i < labs.length; i++) if (labs[i]) { idxs.push(i); L.push(labs[i]); }
   if (!L.length) return;
-  var cl = clusterLabs(L, 17, TERRAINS.length);
+  /* لا صحراء إلا إذا وُجدت بلاطة واحدة على الأقل بلا رقم قديم */
+  var anyNoToken = false;
+  for (i = 0; i < tiles.length; i++) if (!tiles[i].hasToken) anyNoToken = true;
+  if (noDesert) anyNoToken = false;
+  var maxK = anyNoToken ? TERRAINS.length : TERRAINS.length - 1;
+  var cl = clusterLabs(L, 17, maxK);
 
   /* بلاطة وحيدة شاذّة اللون وتحمل رقماً قديماً لا يمكن أن تكون تضاريس مستقلة:
      نضمّها لأقرب مجموعة بدل أن تسرق اسم تضاريس كاملة */
@@ -721,7 +744,7 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR) {
                             Math.min(255, feats[i].rgb[1] * kNorm),
                             Math.min(255, feats[i].rgb[2] * kNorm));
   }
-  var asg = chooseLabels(feats);
+  var asg = chooseLabels(feats, anyNoToken);
   for (i = 0; i < cl.length; i++) {
     var chosen = asg[i];
     /* إن كان الإسناد بعيداً جداً بينما لون المجموعة يطابق تضاريس أخرى بوضوح، نأخذ الأوضح */
@@ -735,11 +758,15 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR) {
       tiles[idxs[cl[i].items[q2]]].terrain = TERRAINS[chosen].id;
     }
   }
-  for (i = 0; i < tiles.length; i++) if (!tiles[i].terrain) tiles[i].terrain = 'desert';
+  var fallback = noDesert ? 'brick' : 'desert';
+  for (i = 0; i < tiles.length; i++) {
+    if (!tiles[i].terrain) tiles[i].terrain = fallback;
+    if (noDesert && tiles[i].terrain === 'desert') tiles[i].terrain = 'brick';
+  }
 }
 
 /* ---------- التحليل الكامل للصورة ---------- */
-function analyzeImage(img, vMin, sMax) {
+function analyzeImage(img, vMin, sMax, noDesert) {
   var det = detectTokens(img, vMin, sMax);
   if (det.tokens.length < 3) {
     return { ok:false, reason:'tokens', tiles:[], tokenCount:det.tokens.length };
@@ -788,7 +815,7 @@ function analyzeImage(img, vMin, sMax) {
   if (hexMode) {
     for (i = 0; i < tiles.length; i++) { tiles[i].hasToken = false; tiles[i].tokenR = null; }
   }
-  classifyTiles(img, tiles, lat.d, det.mask, tokR);
+  classifyTiles(img, tiles, lat.d, det.mask, tokR, noDesert);
   tiles.sort(function (p, q) { return (p.y - q.y) || (p.x - q.x); });
   if (tiles.length < 4) return { ok:false, reason:'fewtiles', tiles:tiles };
   return { ok:true, tiles:tiles, lattice:lat, d:lat.d, mask:det.mask, hexMode:hexMode,
@@ -812,7 +839,7 @@ function brightPercentile(img, frac) {
   return 1;
 }
 /* يجرّب كل العتبات ويختار أفضل نتيجة (أكثر بلاطات، ثم أقل خطأ ملاءمة) */
-function analyzeBest(img) {
+function analyzeBest(img, noDesert) {
   var best = null, i;
   var p78 = brightPercentile(img, 0.78), p88 = brightPercentile(img, 0.88);
   var presets = MASK_PRESETS.concat([
@@ -822,7 +849,7 @@ function analyzeBest(img) {
   ]);
   for (i = 0; i < presets.length; i++) {
     var r;
-    try { r = analyzeImage(img, presets[i][0], presets[i][1]); }
+    try { r = analyzeImage(img, presets[i][0], presets[i][1], noDesert); }
     catch (e) { continue; }
     if (!r || !r.ok) continue;
     r.preset = presets[i];
@@ -1062,7 +1089,7 @@ function ar(n) { return String(n).split('').map(function (c) {
 var S = { img:null, origW:0, origH:0, work:null, mask:null,
           tiles:[], d:0, tokenR:0, theta:0, result:null, assign:null,
           mode:'fix', sel:-1, drag:-1, pick:'wood', showNames:true,
-          seed:1, viewScale:1 };
+          seed:1, viewScale:1, noDesert:true, lastFix:null };
 
 function note(kind, html) {
   var n = $('status');
@@ -1085,12 +1112,51 @@ function note(kind, html) {
     Array.prototype.forEach.call(box.children, function (c) { c.classList.remove('on'); });
     el.classList.add('on');
     if (S.sel >= 0 && S.tiles[S.sel]) {
+      S.lastFix = { rgb:S.tiles[S.sel].rgb, type:S.pick };
       S.tiles[S.sel].terrain = S.pick;
       S.sel = -1;
       invalidate();
+      offerApplyAll();
     }
   });
 })();
+
+/* ---------- «طبّق على كل البلاطات بنفس اللون» ---------- */
+function similarTiles() {
+  if (!S.lastFix || !S.lastFix.rgb) return [];
+  var base = CORE.rgb2lab(S.lastFix.rgb[0], S.lastFix.rgb[1], S.lastFix.rgb[2]);
+  var out = [];
+  for (var i = 0; i < S.tiles.length; i++) {
+    var t = S.tiles[i];
+    if (!t.rgb || t.terrain === S.lastFix.type) continue;
+    if (CORE.dLab(base, CORE.rgb2lab(t.rgb[0], t.rgb[1], t.rgb[2])) < 20) out.push(i);
+  }
+  return out;
+}
+function offerApplyAll() {
+  var list = similarTiles();
+  if (!list.length) { $('applyRow').hidden = true; return; }
+  var T = CORE.terrainById(S.lastFix.type);
+  $('bApply').textContent = '🔁 طبّق «' + T.name + '» على كل البلاطات بنفس اللون (' + ar(list.length) + ')';
+  $('applyRow').hidden = false;
+}
+$('bApply').addEventListener('click', function () {
+  var list = similarTiles();
+  list.forEach(function (i) { S.tiles[i].terrain = S.lastFix.type; });
+  $('applyRow').hidden = true;
+  invalidate();
+});
+
+/* ---------- وجود الصحراء من عدمه ---------- */
+function setDesert(has) {
+  if (S.noDesert === !has) return;
+  S.noDesert = !has;
+  $('dNo').classList.toggle('on', S.noDesert);
+  $('dYes').classList.toggle('on', !S.noDesert);
+  if (S.work) detect();
+}
+$('dNo').addEventListener('click', function () { setDesert(false); });
+$('dYes').addEventListener('click', function () { setDesert(true); });
 
 /* ---------- رفع الصورة ---------- */
 $('b1').addEventListener('click', function () { $('file').click(); });
@@ -1150,7 +1216,7 @@ function detect() {
   note('', '⏳ جارٍ قراءة الخريطة...');
   setTimeout(function () {
     var res;
-    try { res = CORE.analyzeBest(S.work); }
+    try { res = CORE.analyzeBest(S.work, S.noDesert); }
     catch (err) { res = { ok:false, reason:'error' }; }
     $('b1').classList.remove('busy');
     var sc = S.work.scale;
@@ -1161,12 +1227,18 @@ function detect() {
       S.d = res.d / sc;
       S.tokenR = (res.tokenRadius || res.d * 0.24) / sc;
       S.tiles = res.tiles.map(function (t) {
-        return { x:t.x / sc, y:t.y / sc, terrain:t.terrain,
+        return { x:t.x / sc, y:t.y / sc, terrain:t.terrain, rgb:t.rgb,
                  hasToken:!!t.hasToken, tokenR:(t.tokenR || res.tokenRadius) / sc };
       });
       S.result = null; S.assign = null; S.sel = -1;
+      var blank = 0;
+      for (var bi = 0; bi < S.tiles.length; bi++) if (!S.tiles[bi].hasToken) blank++;
+      var extra = (S.noDesert && blank)
+        ? '<br>🏜️ لاحظتُ <b>' + ar(blank) + '</b> بلاطة بلا رقم قديم. إن كانت صحراء فعلاً اضغط «فيها صحراء بدون رقم».'
+        : '';
       note('ok', '✅ قرأتُ <b>' + ar(S.tiles.length) + '</b> بلاطة. ' +
-        'راجع الأسماء المكتوبة على الصورة — إن كان نوع بلاطة غلط اضغط عليها وصححه، ثم اضغط الزر الأخضر.');
+        'راجع الأسماء المكتوبة على الصورة — إن كان نوع بلاطة غلط اضغط عليها وصححه، ثم اضغط الزر الأخضر.' + extra);
+      $('applyRow').hidden = true; S.lastFix = null;
     } else {
       S.tiles = []; S.result = null; S.assign = null;
       note('warn', '⚠️ لم أستطع قراءة الخريطة تلقائياً من هذه الصورة.<br>' +
@@ -1488,8 +1560,11 @@ function genManual() {
   var tmp = tiles.map(function (t) {
     return { x:t.x * sc, y:t.y * sc, hasToken:false, tokenR:d * 0.24 * sc };
   });
-  CORE.classifyTiles(S.work, tmp, d * sc, workMask(), d * 0.24 * sc);
-  tiles.forEach(function (t, i) { t.terrain = tmp[i].terrain || 'desert'; });
+  CORE.classifyTiles(S.work, tmp, d * sc, workMask(), d * 0.24 * sc, S.noDesert);
+  tiles.forEach(function (t, i) {
+    t.terrain = tmp[i].terrain || (S.noDesert ? 'brick' : 'desert');
+    t.rgb = tmp[i].rgb;
+  });
   S.tiles = tiles; S.sel = -1;
   $('stage').hidden = false;
   invalidate();
