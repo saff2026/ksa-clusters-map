@@ -840,7 +840,7 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR, noDesert) {
 /* هل يحمل مركز هذه البلاطة قرص رقم قديم؟
    القرص: مساحة فاتحة منخفضة التشبّع، وبداخلها «حبر» الرقم (داكن أو أحمر).
    الصحراء: فاتحة كذلك لكن بلا حبر. القرار مستقل تماماً عن لون التضاريس. */
-function hasNumberAt(img, cx, cy, d, tokenR) {
+function numberEvidence(img, cx, cy, d, tokenR) {
   var W = img.width, H = img.height, dat = img.data;
   /* نفحص داخل القرص نفسه: نصف القطر يتبع حجم القرص المكتشف لا حجم البلاطة */
   var base = tokenR ? tokenR * 0.72 : d * 0.18;
@@ -864,8 +864,14 @@ function hasNumberAt(img, cx, cy, d, tokenR) {
       if (sat > 0.50 && rr > gg * 1.5 && rr > bb * 1.5) ink++;
     }
   }
-  if (tot < 12) return true;
-  return (bright / tot) > 0.32 && (ink / tot) > 0.025;
+  if (tot < 12) return { bright: 1, ink: 1, ok: false };
+  return { bright: bright / tot, ink: ink / tot, ok: true };
+}
+/* متوافق مع الاستعمال القديم */
+function hasNumberAt(img, cx, cy, d, tokenR) {
+  var e = numberEvidence(img, cx, cy, d, tokenR);
+  if (!e.ok) return true;
+  return e.bright > 0.32 && e.ink > 0.025;
 }
 
 /* لون البلاطة الفارغة لا يكون أخضر أبداً: الصحراء رملية أو شاحبة.
@@ -879,13 +885,23 @@ function looksBlankable(rgb) {
 }
 /* البلاطات التي لا رقم عليها تصير طوباً (قاعدة بيت اللاعب) */
 function blankTilesToBrick(img, tiles, d, medTokenR) {
-  var i, blanks = [];
+  var i, blanks = [], ev = [], inks = [];
   for (i = 0; i < tiles.length; i++) {
-    var hn = true;
-    try { hn = hasNumberAt(img, tiles[i].x, tiles[i].y, d, tiles[i].tokenR || medTokenR); }
-    catch (e) { hn = true; }
-    tiles[i].hasNumber = hn;
-    if (!hn && looksBlankable(tiles[i].rgb)) blanks.push(i);
+    var e;
+    try { e = numberEvidence(img, tiles[i].x, tiles[i].y, d, tiles[i].tokenR || medTokenR); }
+    catch (err) { e = { bright: 1, ink: 1, ok: false }; }
+    ev.push(e);
+    if (e.ok) inks.push(e.ink);
+  }
+  /* المقارنة نسبية داخل الصورة نفسها: بلاطة الصحراء يكون «حبرها» أقل بكثير
+     من بلاطات تحمل أرقاماً، مهما كان أسلوب الرسم ومهما كان في الرمل من تشققات. */
+  var medInk = inks.length ? median(inks) : 0;
+  var thr = Math.min(medInk * 0.45, 0.20);
+  for (i = 0; i < tiles.length; i++) {
+    var blank = ev[i].ok && ev[i].bright > 0.25 && ev[i].ink < thr;
+    tiles[i].hasNumber = !blank;
+    tiles[i].inkFrac = ev[i].ink;
+    if (blank && looksBlankable(tiles[i].rgb)) blanks.push(i);
   }
   var changed = 0;
   /* لوحة كاتان فيها صحراء واحدة، فنقبل اثنتين على الأكثر احتياطاً */
@@ -1506,7 +1522,8 @@ return {
   sampleColor:sampleColor, completeBoard:completeBoard, classifyTiles:classifyTiles,
   analyzeImage:analyzeImage, analyzeBest:analyzeBest, MASK_PRESETS:MASK_PRESETS,
   detectByLand:detectByLand, findLandBox:findLandBox, ROW_PATTERNS:ROW_PATTERNS,
-  hasNumberAt:hasNumberAt, blankTilesToBrick:blankTilesToBrick, looksBlankable:looksBlankable,
+  hasNumberAt:hasNumberAt, numberEvidence:numberEvidence,
+  blankTilesToBrick:blankTilesToBrick, looksBlankable:looksBlankable,
   buildAdjacency:buildAdjacency, tierSlots:tierSlots,
   assignNumbers:assignNumbers, checkRules:checkRules
 };
@@ -1598,6 +1615,7 @@ function applyDesertRule(tiles) {
   for (i = 0; i < tiles.length; i++) {
     tiles[i].terrain = tmp[i].terrain;
     tiles[i].hasNumber = tmp[i].hasNumber;
+    tiles[i].inkFrac = tmp[i].inkFrac;
   }
   return n;
 }
@@ -1995,6 +2013,7 @@ function buildDiagReport() {
            ' ' + Math.round(rgb[0]) + ',' + Math.round(rgb[1]) + ',' + Math.round(rgb[2]) +
            ' ' + Math.round(hsv[0]) + ',' + hsv[1].toFixed(2) + ',' + hsv[2].toFixed(2) +
            ' ' + (t.hasNumber === false ? 'no' : 'yes') +
+           ' ink=' + (t.inkFrac !== undefined ? t.inkFrac.toFixed(3) : '-') +
            ' ' + Math.round(t.x) + ',' + Math.round(t.y));
   }
   if (S.result) {
