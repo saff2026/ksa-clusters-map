@@ -523,7 +523,7 @@ function pointToLattice(lat, x, y) {
 }
 
 /* ---------- أخذ عينة لون من داخل البلاطة ---------- */
-function sampleColor(img, cx, cy, rIn, rOut, skipMask, avoidLab) {
+function sampleColor(img, cx, cy, rIn, rOut, skipMask, avoidLab, nbrCenters) {
   var W = img.width, H = img.height, d = img.data;
   var x0 = Math.max(0, Math.floor(cx - rOut)), x1 = Math.min(W-1, Math.ceil(cx + rOut));
   var y0 = Math.max(0, Math.floor(cy - rOut)), y1 = Math.min(H-1, Math.ceil(cy + rOut));
@@ -531,8 +531,17 @@ function sampleColor(img, cx, cy, rIn, rOut, skipMask, avoidLab) {
   var step = Math.max(1, Math.floor(rOut / 34));
   for (var y = y0; y <= y1; y += step) {
     for (var x = x0; x <= x1; x += step) {
-      var dx = x - cx, dy = y - cy, dist = Math.sqrt(dx*dx + dy*dy);
+      var dx = x - cx, dy = y - cy, d2 = dx*dx + dy*dy, dist = Math.sqrt(d2);
       if (dist < rIn || dist > rOut) continue;
+      /* البكسل الأقرب إلى مركز بلاطة مجاورة ليس من هذه البلاطة */
+      if (nbrCenters) {
+        var own = true;
+        for (var nz = 0; nz < nbrCenters.length; nz++) {
+          var ndx = x - nbrCenters[nz].x, ndy = y - nbrCenters[nz].y;
+          if (ndx*ndx + ndy*ndy < d2) { own = false; break; }
+        }
+        if (!own) continue;
+      }
       total++;
       var idx = y * W + x;
       if (skipMask && skipMask[idx]) continue;
@@ -544,7 +553,7 @@ function sampleColor(img, cx, cy, rIn, rOut, skipMask, avoidLab) {
   }
   /* إن استُبعد أغلب العيّنة فاللون المتجنَّب هو لون البلاطة نفسها (الصحراء مثلاً) */
   if (avoidLab && rs.length < (rs.length + skipped) * 0.30) {
-    return sampleColor(img, cx, cy, rIn, rOut, skipMask, null);
+    return sampleColor(img, cx, cy, rIn, rOut, skipMask, null, nbrCenters);
   }
   if (rs.length < 8) return null;
   return { r: median(rs), g: median(gs), b: median(bs), n: rs.length, total: total };
@@ -667,6 +676,18 @@ function relCost(feats, asg) {
   return c;
 }
 /* أفضل إسناد بحيث لا تتكرر التضاريس، مع حساب التكاليف المطلقة والنسبية معاً */
+/* لون واضح الخضرة لا يكون طوباً ولا قمحاً ولا صحراء، والعكس صحيح.
+   يُطبَّق فقط عند وضوح اللون تماماً، مع منطقة حياد بين العائلتين. */
+function familyAllows(f, tIdx) {
+  var id = TERRAINS[tIdx].id;
+  if (f.S <= 0.28) return true;                       /* لون باهت: لا حكم */
+  var h = f.H, sh = signedHue(h);
+  var clearlyGreen = (h >= 75 && h <= 165);
+  var clearlyWarm  = (sh >= -20 && sh <= 55);
+  if (clearlyGreen && (id === 'brick' || id === 'wheat' || id === 'desert')) return false;
+  if (clearlyWarm && (id === 'wood' || id === 'sheep')) return false;
+  return true;
+}
 function chooseLabels(feats, allowDesert) {
   var k = feats.length, best = null, bestC = 1e18;
   var used = new Array(TERRAINS.length).fill(false);
@@ -674,21 +695,28 @@ function chooseLabels(feats, allowDesert) {
   if (allowDesert === false) {
     for (var z = 0; z < TERRAINS.length; z++) if (TERRAINS[z].id === 'desert') used[z] = true;
   }
-  (function rec(i, acc) {
-    if (acc >= bestC) return;
-    if (i === k) {
-      var total = acc + relCost(feats, cur);
-      if (total < bestC) { bestC = total; best = cur.slice(); }
-      return;
-    }
-    for (var t = 0; t < TERRAINS.length; t++) {
-      if (used[t]) continue;
-      used[t] = true; cur[i] = t;
-      rec(i + 1, acc + absCost(feats[i], t) * feats[i].size);
-      used[t] = false; cur[i] = -1;
-    }
-  })(0, 0);
-  return best;
+  function search(useFamily) {
+    best = null; bestC = 1e18;
+    (function rec(i, acc) {
+      if (acc >= bestC) return;
+      if (i === k) {
+        var total = acc + relCost(feats, cur);
+        if (total < bestC) { bestC = total; best = cur.slice(); }
+        return;
+      }
+      for (var t = 0; t < TERRAINS.length; t++) {
+        if (used[t]) continue;
+        if (useFamily && !familyAllows(feats[i], t)) continue;
+        used[t] = true; cur[i] = t;
+        rec(i + 1, acc + absCost(feats[i], t) * feats[i].size);
+        used[t] = false; cur[i] = -1;
+      }
+    })(0, 0);
+    return best;
+  }
+  var r = search(true);
+  if (!r) r = search(false);      /* إن لم يوجد حلّ بالقيد، نرفعه */
+  return r;
 }
 /* لون الحد الفاصل بين البلاطات: نقيسه من منتصفات المسافات بين المراكز المتجاورة */
 function borderColorOf(img, tiles, d) {
@@ -704,8 +732,19 @@ function borderColorOf(img, tiles, d) {
   return rgb2lab(median(rs), median(gs), median(bs));
 }
 function classifyTiles(img, tiles, d, tokenMask, medTokenR, noDesert) {
-  var i, labs = [], rgbs = [];
+  var i, j, labs = [], rgbs = [];
   var borderLab = borderColorOf(img, tiles, d);
+  var nbrs = [];
+  for (i = 0; i < tiles.length; i++) {
+    var arr = [];
+    for (j = 0; j < tiles.length; j++) {
+      if (i === j) continue;
+      if (Math.hypot(tiles[i].x - tiles[j].x, tiles[i].y - tiles[j].y) < d * 1.4) {
+        arr.push({ x: tiles[j].x, y: tiles[j].y });
+      }
+    }
+    nbrs.push(arr);
+  }
   for (i = 0; i < tiles.length; i++) {
     var tr = tiles[i].tokenR || medTokenR || d * 0.24;
     /* نبقى بعيداً عن الإطار الرملي الذي يحيط بالبلاطة في كثير من الرسومات */
@@ -713,8 +752,8 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR, noDesert) {
     var rOut = d * 0.43;
     if (rIn > rOut - 2) rIn = Math.max(1, rOut - 2);
     var c = sampleColor(img, tiles[i].x, tiles[i].y, rIn, rOut,
-                        tiles[i].hasToken ? tokenMask : null, borderLab);
-    if (!c) c = sampleColor(img, tiles[i].x, tiles[i].y, 0, d * 0.43, null);
+                        tiles[i].hasToken ? tokenMask : null, borderLab, nbrs[i]);
+    if (!c) c = sampleColor(img, tiles[i].x, tiles[i].y, 0, d * 0.43, null, null, nbrs[i]);
     if (!c) { labs.push(null); rgbs.push(null); continue; }
     tiles[i].rgb = [Math.round(c.r), Math.round(c.g), Math.round(c.b)];
     labs.push(rgb2lab(c.r, c.g, c.b));
@@ -1683,9 +1722,9 @@ function render() {
     var t = S.tiles[j], T = CORE.terrainById(t.terrain) || CORE.TERRAINS[0];
     var x = t.x * sc, y = t.y * sc, isSel = (j === S.sel);
     hexPath(vctx, x, y, HR * 0.94, S.theta);
-    vctx.fillStyle = T.css + (isSel ? '88' : '4D');
-    vctx.fill();
-    vctx.lineWidth = Math.max(2, HR * (isSel ? 0.13 : 0.07));
+    /* بلا تعبئة: يبقى لون البلاطة الحقيقي ظاهراً لتراجعه بعينك */
+    if (isSel) { vctx.fillStyle = T.css + '66'; vctx.fill(); }
+    vctx.lineWidth = Math.max(2, HR * (isSel ? 0.13 : 0.08));
     vctx.strokeStyle = isSel ? '#E9A700' : T.css;
     vctx.stroke();
     var fs = Math.max(11, HR * 0.3);
