@@ -140,20 +140,6 @@ td.nm{text-align:right;font-weight:600;white-space:nowrap}
 <div id="stage" hidden>
   <div class="canvasBox"><canvas id="view"></canvas></div>
   <div class="counts" id="counts"></div>
-  <div class="fixrow" id="desertRow">
-    <span style="align-self:center;font-size:14px;color:var(--dim);font-weight:600">بلاطة الصحراء:</span>
-    <button type="button" class="chip on" id="dBrick">🧱 اعتبرها طوباً (تأخذ رقماً)</button>
-    <button type="button" class="chip" id="dKeep">🏜️ اتركها صحراء بلا رقم</button>
-  </div>
-  <div class="note" id="fixhint">لو نوع أي بلاطة غلط: <b>اضغط عليها</b> ثم اختر النوع الصحيح من الأسفل.</div>
-  <div class="fixrow" id="chips"></div>
-  <div class="minirow" id="applyRow" hidden>
-    <button class="mini" id="bApply"></button>
-  </div>
-  <div class="minirow">
-    <button class="mini" id="bShuffle" disabled>🎲 جرّب توزيعاً آخر</button>
-    <button class="mini" id="bEye">👁️ إخفاء الأسماء</button>
-  </div>
 </div>
 
 <details id="adv">
@@ -174,7 +160,18 @@ td.nm{text-align:right;font-weight:600;white-space:nowrap}
     <option value="strong">الحظ الأقوى (٦ أو ٨)</option>
   </select>
 
-  <label class="field">أدوات تصحيح الشبكة</label>
+  <label class="field">إعادة التوزيع والعرض</label>
+  <div class="minirow">
+    <button class="mini" id="bShuffle" disabled>🎲 جرّب توزيعاً آخر</button>
+    <button class="mini" id="bEye">👁️ إخفاء أسماء التضاريس</button>
+  </div>
+
+  <label class="field">تصحيح يدوي (نادراً ما تحتاجه)</label>
+  <div class="note" id="fixhint">اضغط «✏️ تصحيح النوع» بالأسفل، ثم اضغط على البلاطة في الصورة واختر نوعها.</div>
+  <div class="fixrow" id="chips"></div>
+  <div class="minirow" id="applyRow" hidden>
+    <button class="mini" id="bApply"></button>
+  </div>
   <div class="minirow">
     <button class="mini" id="mFix">✏️ تصحيح النوع</button>
     <button class="mini" id="mAdd">➕ إضافة بلاطة</button>
@@ -1088,8 +1085,8 @@ function ar(n) { return String(n).split('').map(function (c) {
 
 var S = { img:null, origW:0, origH:0, work:null, mask:null,
           tiles:[], d:0, tokenR:0, theta:0, result:null, assign:null,
-          mode:'fix', sel:-1, drag:-1, pick:'wood', showNames:true,
-          seed:1, viewScale:1, desertAsBrick:true, lastFix:null };
+          mode:'none', sel:-1, drag:-1, pick:'wood', showNames:true,
+          seed:1, viewScale:1, lastFix:null };
 
 function note(kind, html) {
   var n = $('status');
@@ -1147,26 +1144,16 @@ $('bApply').addEventListener('click', function () {
   invalidate();
 });
 
-/* ---------- ماذا نفعل ببلاطة الصحراء ---------- */
-/* الصحراء تُكتشف دائماً بدقة (هي البلاطة بلا رقم قديم)، ثم نقرر:
-   إمّا أن نحوّلها إلى طوب فتأخذ رقماً، وإمّا أن نتركها بلا رقم. */
+/* ---------- بلاطة الصحراء تُعتبر طوباً دائماً ---------- */
+/* تُكتشف الصحراء بدقة (هي البلاطة بلا رقم قديم) ثم تُحوّل إلى طوب،
+   لأن اللاعب يستبدلها ببلاطة طوب على الطاولة. */
 function applyDesertRule(tiles) {
-  if (!S.desertAsBrick) return 0;
   var n = 0;
   for (var i = 0; i < tiles.length; i++) {
     if (tiles[i].terrain === 'desert') { tiles[i].terrain = 'brick'; n++; }
   }
   return n;
 }
-function setDesertMode(asBrick) {
-  if (S.desertAsBrick === asBrick) return;
-  S.desertAsBrick = asBrick;
-  $('dBrick').classList.toggle('on', asBrick);
-  $('dKeep').classList.toggle('on', !asBrick);
-  if (S.work) detect();
-}
-$('dBrick').addEventListener('click', function () { setDesertMode(true); });
-$('dKeep').addEventListener('click', function () { setDesertMode(false); });
 
 /* ---------- رفع الصورة ---------- */
 $('b1').addEventListener('click', function () { $('file').click(); });
@@ -1243,10 +1230,10 @@ function detect() {
       S.result = null; S.assign = null; S.sel = -1;
       var turned = applyDesertRule(S.tiles);
       var extra = turned
-        ? '<br>🧱 حوّلتُ <b>' + ar(turned) + '</b> بلاطة صحراء إلى <b>طوب</b> فستأخذ رقماً — كما تلعبها.'
+        ? ' وحوّلتُ بلاطة الصحراء إلى <b>طوب</b> فستأخذ رقماً.'
         : '';
-      note('ok', '✅ قرأتُ <b>' + ar(S.tiles.length) + '</b> بلاطة. ' +
-        'راجع الأسماء المكتوبة على الصورة — إن كان نوع بلاطة غلط اضغط عليها وصححه، ثم اضغط الزر الأخضر.' + extra);
+      note('ok', '✅ قرأتُ <b>' + ar(S.tiles.length) + '</b> بلاطة.' + extra +
+        '<br>اضغط الزر الأخضر لتوزيع الأرقام.');
       $('applyRow').hidden = true; S.lastFix = null;
     } else {
       S.tiles = []; S.result = null; S.assign = null;
@@ -1377,6 +1364,7 @@ window.addEventListener('mouseup', function () {
 });
 view.addEventListener('click', function (e) {
   if (!S.img) return;
+  if (S.mode === 'none') return;
   var p = pos(e), i = hit(p);
   if (S.mode === 'fix') {
     S.sel = (i >= 0 && i !== S.sel) ? i : -1;
@@ -1399,7 +1387,9 @@ view.addEventListener('click', function (e) {
   }
 });
 function resetHint() {
-  $('fixhint').innerHTML = 'لو نوع أي بلاطة غلط: <b>اضغط عليها</b> ثم اختر النوع الصحيح من الأسفل.';
+  $('fixhint').innerHTML = (S.mode === 'none')
+    ? 'اضغط «✏️ تصحيح النوع» بالأسفل، ثم اضغط على البلاطة في الصورة واختر نوعها.'
+    : 'اضغط على البلاطة في الصورة ثم اختر نوعها الصحيح.';
   $('fixhint').className = 'note';
 }
 function invalidate() {
