@@ -142,8 +142,8 @@ td.nm{text-align:right;font-weight:600;white-space:nowrap}
   <div class="counts" id="counts"></div>
   <div class="fixrow" id="desertRow">
     <span style="align-self:center;font-size:14px;color:var(--dim);font-weight:600">الصحراء في خريطتك:</span>
-    <button type="button" class="chip on" id="dNo">🚫 ما فيها صحراء</button>
-    <button type="button" class="chip" id="dYes">🏜️ فيها صحراء بدون رقم</button>
+    <button type="button" class="chip on" id="dYes">🏜️ فيها صحراء (تلقائي)</button>
+    <button type="button" class="chip" id="dNo">🚫 ما فيها صحراء</button>
   </div>
   <div class="note" id="fixhint">لو نوع أي بلاطة غلط: <b>اضغط عليها</b> ثم اختر النوع الصحيح من الأسفل.</div>
   <div class="fixrow" id="chips"></div>
@@ -1089,7 +1089,7 @@ function ar(n) { return String(n).split('').map(function (c) {
 var S = { img:null, origW:0, origH:0, work:null, mask:null,
           tiles:[], d:0, tokenR:0, theta:0, result:null, assign:null,
           mode:'fix', sel:-1, drag:-1, pick:'wood', showNames:true,
-          seed:1, viewScale:1, noDesert:true, lastFix:null };
+          seed:1, viewScale:1, noDesert:false, lastFix:null };
 
 function note(kind, html) {
   var n = $('status');
