@@ -120,7 +120,7 @@ details p,details li{font-size:13.5px;color:var(--dim)}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" dir="rtl" lang="ar">
 
 <header class="top">
   <h1>🎲 موزّع أرقام كاتان الذكي</h1>
@@ -226,6 +226,7 @@ details p,details li{font-size:13.5px;color:var(--dim)}
     <div class="btnrow">
       <button class="go" id="btnDownload">⬇️ تحميل الصورة النهائية</button>
     </div>
+    <div id="dlMsg"></div>
   </div>
 
   <div class="card">
@@ -1448,14 +1449,39 @@ $('digits').addEventListener('change', render);
 $('dropMode').addEventListener('change', function () { if (S.result) doAssign(false); });
 
 /* ---------- التحميل ---------- */
+function saveViaLink(blob, name) {
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+function saveBlob(blob, name) {
+  var host = (typeof window !== 'undefined') ? window.claude : null;
+  if (host && typeof host.use === 'function') {
+    host.use('downloads').then(function (dl) {
+      if (!dl) { saveViaLink(blob, name); return; }
+      dl.save({ filename: name, data: blob }).then(function () {
+        msg('dlMsg', 'ok', '✅ تم حفظ الصورة.');
+      }, function (err) {
+        if (err && err.code === 'declined') {
+          msg('dlMsg', 'info', 'أُلغي الحفظ. اضغط الزر مرة أخرى متى شئت.');
+        } else {
+          saveViaLink(blob, name);
+        }
+      });
+    }, function () { saveViaLink(blob, name); });
+    return;
+  }
+  saveViaLink(blob, name);
+}
 $('btnDownload').addEventListener('click', function () {
+  if (!S.img) return;
+  msg('dlMsg', 'info', '⏳ جارٍ تجهيز الصورة بدقتها الأصلية...');
   var c = renderFull();
   c.toBlob(function (blob) {
-    var a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'catan-numbers.png';
-    document.body.appendChild(a); a.click();
-    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    if (!blob) { msg('dlMsg', 'err', 'تعذّر تجهيز الصورة. جرّب مرة أخرى.'); return; }
+    saveBlob(blob, 'catan-numbers.png');
   }, 'image/png');
 });
 
