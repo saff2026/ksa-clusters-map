@@ -509,11 +509,11 @@ function pointToLattice(lat, x, y) {
 }
 
 /* ---------- أخذ عينة لون من داخل البلاطة ---------- */
-function sampleColor(img, cx, cy, rIn, rOut, skipMask) {
+function sampleColor(img, cx, cy, rIn, rOut, skipMask, avoidLab) {
   var W = img.width, H = img.height, d = img.data;
   var x0 = Math.max(0, Math.floor(cx - rOut)), x1 = Math.min(W-1, Math.ceil(cx + rOut));
   var y0 = Math.max(0, Math.floor(cy - rOut)), y1 = Math.min(H-1, Math.ceil(cy + rOut));
-  var rs = [], gs = [], bs = [], total = 0;
+  var rs = [], gs = [], bs = [], total = 0, kept = 0, skipped = 0;
   var step = Math.max(1, Math.floor(rOut / 34));
   for (var y = y0; y <= y1; y += step) {
     for (var x = x0; x <= x1; x += step) {
@@ -524,8 +524,13 @@ function sampleColor(img, cx, cy, rIn, rOut, skipMask) {
       if (skipMask && skipMask[idx]) continue;
       var p = idx * 4;
       if (d[p+3] < 24) continue;
+      if (avoidLab && dLab(rgb2lab(d[p], d[p+1], d[p+2]), avoidLab) < 15) { skipped++; continue; }
       rs.push(d[p]); gs.push(d[p+1]); bs.push(d[p+2]);
     }
+  }
+  /* إن استُبعد أغلب العيّنة فاللون المتجنَّب هو لون البلاطة نفسها (الصحراء مثلاً) */
+  if (avoidLab && rs.length < (rs.length + skipped) * 0.30) {
+    return sampleColor(img, cx, cy, rIn, rOut, skipMask, null);
   }
   if (rs.length < 8) return null;
   return { r: median(rs), g: median(gs), b: median(bs), n: rs.length, total: total };
@@ -671,16 +676,31 @@ function chooseLabels(feats, allowDesert) {
   })(0, 0);
   return best;
 }
+/* لون الحد الفاصل بين البلاطات: نقيسه من منتصفات المسافات بين المراكز المتجاورة */
+function borderColorOf(img, tiles, d) {
+  var rs = [], gs = [], bs = [], i, j;
+  for (i = 0; i < tiles.length; i++) for (j = i + 1; j < tiles.length; j++) {
+    var dx = tiles[i].x - tiles[j].x, dy = tiles[i].y - tiles[j].y;
+    if (Math.hypot(dx, dy) > d * 1.25) continue;
+    var c = ringColor(img, (tiles[i].x + tiles[j].x) / 2, (tiles[i].y + tiles[j].y) / 2,
+                      Math.max(1, d * 0.04), 8);
+    if (c) { rs.push(c.r); gs.push(c.g); bs.push(c.b); }
+  }
+  if (rs.length < 6) return null;
+  return rgb2lab(median(rs), median(gs), median(bs));
+}
 function classifyTiles(img, tiles, d, tokenMask, medTokenR, noDesert) {
   var i, labs = [], rgbs = [];
+  var borderLab = borderColorOf(img, tiles, d);
   for (i = 0; i < tiles.length; i++) {
     var tr = tiles[i].tokenR || medTokenR || d * 0.24;
-    var rIn = Math.max(tr * 1.22, d * 0.27);
-    var rOut = d * 0.44;
+    /* نبقى بعيداً عن الإطار الرملي الذي يحيط بالبلاطة في كثير من الرسومات */
+    var rIn = Math.max(tr * 1.15, d * 0.27);
+    var rOut = d * 0.43;
     if (rIn > rOut - 2) rIn = Math.max(1, rOut - 2);
     var c = sampleColor(img, tiles[i].x, tiles[i].y, rIn, rOut,
-                        tiles[i].hasToken ? tokenMask : null);
-    if (!c) c = sampleColor(img, tiles[i].x, tiles[i].y, 0, d * 0.44, null);
+                        tiles[i].hasToken ? tokenMask : null, borderLab);
+    if (!c) c = sampleColor(img, tiles[i].x, tiles[i].y, 0, d * 0.43, null);
     if (!c) { labs.push(null); rgbs.push(null); continue; }
     tiles[i].rgb = [Math.round(c.r), Math.round(c.g), Math.round(c.b)];
     labs.push(rgb2lab(c.r, c.g, c.b));
@@ -753,7 +773,7 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR, noDesert) {
       var v = terrainDistance(feats[i].labN, t2);
       if (v < bestV) { bestV = v; bestT = t2; }
     }
-    if (terrainDistance(feats[i].labN, chosen) > 30 && bestV < 15) chosen = bestT;
+    if (terrainDistance(feats[i].labN, chosen) > 32 && bestV < 20) chosen = bestT;
     for (var q2 = 0; q2 < cl[i].items.length; q2++) {
       tiles[idxs[cl[i].items[q2]]].terrain = TERRAINS[chosen].id;
     }
