@@ -857,12 +857,48 @@ function hasNumberAt(img, cx, cy, d, tokenR) {
       var mx = Math.max(dat[p], dat[p+1], dat[p+2]) / 255;
       var mn = Math.min(dat[p], dat[p+1], dat[p+2]) / 255;
       var sat = mx ? (mx - mn) / mx : 0;
-      if (mx > 0.70 && sat < 0.42) bright++;
-      else if (mx < 0.60 || sat > 0.50) ink++;
+      if (mx > 0.70 && sat < 0.42) { bright++; continue; }
+      /* حبر الرقم: أسود داكن أو أحمر مشبَع فقط. لا يُحسب الأخضر ولا البني حبراً. */
+      if (mx < 0.55) { ink++; continue; }
+      var rr = dat[p] / 255, gg = dat[p+1] / 255, bb = dat[p+2] / 255;
+      if (sat > 0.50 && rr > gg * 1.5 && rr > bb * 1.5) ink++;
     }
   }
   if (tot < 12) return true;
   return (bright / tot) > 0.32 && (ink / tot) > 0.025;
+}
+
+/* لون البلاطة الفارغة لا يكون أخضر أبداً: الصحراء رملية أو شاحبة.
+   هذا يمنع تحويل بلاطة مراعٍ إلى طوب لو أخطأ فحص الرقم. */
+function looksBlankable(rgb) {
+  if (!rgb) return true;
+  var hsv = rgb2hsv(rgb[0], rgb[1], rgb[2]);
+  if (hsv[1] < 0.20) return true;                 /* رمادي أو أبيض */
+  var sh = signedHue(hsv[0]);
+  return sh >= -20 && sh <= 62;                   /* دافئ: رملي أو ذهبي أو بني */
+}
+/* البلاطات التي لا رقم عليها تصير طوباً (قاعدة بيت اللاعب) */
+function blankTilesToBrick(img, tiles, d, medTokenR) {
+  var i, blanks = [];
+  for (i = 0; i < tiles.length; i++) {
+    var hn = true;
+    try { hn = hasNumberAt(img, tiles[i].x, tiles[i].y, d, tiles[i].tokenR || medTokenR); }
+    catch (e) { hn = true; }
+    tiles[i].hasNumber = hn;
+    if (!hn && looksBlankable(tiles[i].rgb)) blanks.push(i);
+  }
+  var changed = 0;
+  /* لوحة كاتان فيها صحراء واحدة، فنقبل اثنتين على الأكثر احتياطاً */
+  if (blanks.length >= 1 && blanks.length <= 2) {
+    for (i = 0; i < blanks.length; i++) {
+      if (tiles[blanks[i]].terrain !== 'brick') changed++;
+      tiles[blanks[i]].terrain = 'brick';
+    }
+  }
+  for (i = 0; i < tiles.length; i++) {
+    if (tiles[i].terrain === 'desert') { tiles[i].terrain = 'brick'; changed++; }
+  }
+  return changed;
 }
 
 /* ---------- التحليل الكامل للصورة ---------- */
@@ -1451,7 +1487,7 @@ return {
   sampleColor:sampleColor, completeBoard:completeBoard, classifyTiles:classifyTiles,
   analyzeImage:analyzeImage, analyzeBest:analyzeBest, MASK_PRESETS:MASK_PRESETS,
   detectByLand:detectByLand, findLandBox:findLandBox, ROW_PATTERNS:ROW_PATTERNS,
-  hasNumberAt:hasNumberAt,
+  hasNumberAt:hasNumberAt, blankTilesToBrick:blankTilesToBrick, looksBlankable:looksBlankable,
   buildAdjacency:buildAdjacency, tierSlots:tierSlots,
   assignNumbers:assignNumbers, checkRules:checkRules
 };
@@ -1533,28 +1569,16 @@ $('bApply').addEventListener('click', function () {
 /* القرار لا يعتمد على لون البلاطة إطلاقاً، بل على وجود رقم قديم في مركزها،
    لأن اللاعب يستبدل البلاطة الفارغة ببلاطة طوب على الطاولة. */
 function applyDesertRule(tiles) {
-  var i, n = 0, blanks = [];
-  var sc = S.work ? S.work.scale : 1;
+  if (!S.work || !(S.d > 0)) return 0;
+  var sc = S.work.scale, i;
+  var tmp = tiles.map(function (t) {
+    return { x:t.x * sc, y:t.y * sc, rgb:t.rgb, terrain:t.terrain,
+             tokenR:(t.tokenR || S.tokenR) * sc };
+  });
+  var n = CORE.blankTilesToBrick(S.work, tmp, S.d * sc, S.tokenR * sc);
   for (i = 0; i < tiles.length; i++) {
-    var hasNum = true;
-    if (S.work && S.d > 0) {
-      try {
-        hasNum = CORE.hasNumberAt(S.work, tiles[i].x * sc, tiles[i].y * sc,
-                                  S.d * sc, (tiles[i].tokenR || S.tokenR) * sc);
-      } catch (e) { hasNum = true; }
-    }
-    tiles[i].hasNumber = hasNum;
-    if (!hasNum) blanks.push(i);
-  }
-  /* إن بدت بلاطات كثيرة فارغة فالقياس غير موثوق، فنكتفي بتحويل ما صُنّف صحراءَ */
-  if (blanks.length >= 1 && blanks.length <= 3) {
-    for (i = 0; i < blanks.length; i++) {
-      if (tiles[blanks[i]].terrain !== 'brick') n++;
-      tiles[blanks[i]].terrain = 'brick';
-    }
-  }
-  for (i = 0; i < tiles.length; i++) {
-    if (tiles[i].terrain === 'desert') { tiles[i].terrain = 'brick'; n++; }
+    tiles[i].terrain = tmp[i].terrain;
+    tiles[i].hasNumber = tmp[i].hasNumber;
   }
   return n;
 }
