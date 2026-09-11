@@ -845,7 +845,7 @@ function numberEvidence(img, cx, cy, d, tokenR) {
   /* نفحص داخل القرص نفسه: نصف القطر يتبع حجم القرص المكتشف لا حجم البلاطة */
   var base = tokenR ? tokenR * 0.72 : d * 0.18;
   var r = Math.min(Math.max(base, d * 0.07), d * 0.22);
-  var bright = 0, ink = 0, tot = 0;
+  var bright = 0, ink = 0, cream = 0, tot = 0;
   var step = Math.max(1, Math.round(r / 14));
   for (var y = Math.round(cy - r); y <= cy + r; y += step) {
     for (var x = Math.round(cx - r); x <= cx + r; x += step) {
@@ -857,6 +857,7 @@ function numberEvidence(img, cx, cy, d, tokenR) {
       var mx = Math.max(dat[p], dat[p+1], dat[p+2]) / 255;
       var mn = Math.min(dat[p], dat[p+1], dat[p+2]) / 255;
       var sat = mx ? (mx - mn) / mx : 0;
+      if (mx > 0.70 && sat < 0.35) { cream++; bright++; continue; }
       if (mx > 0.70 && sat < 0.42) { bright++; continue; }
       /* حبر الرقم: أسود داكن أو أحمر مشبَع فقط. لا يُحسب الأخضر ولا البني حبراً. */
       if (mx < 0.55) { ink++; continue; }
@@ -864,8 +865,8 @@ function numberEvidence(img, cx, cy, d, tokenR) {
       if (sat > 0.50 && rr > gg * 1.5 && rr > bb * 1.5) ink++;
     }
   }
-  if (tot < 12) return { bright: 1, ink: 1, ok: false };
-  return { bright: bright / tot, ink: ink / tot, ok: true };
+  if (tot < 12) return { bright: 1, ink: 1, cream: 1, ok: false };
+  return { bright: bright / tot, ink: ink / tot, cream: cream / tot, ok: true };
 }
 /* متوافق مع الاستعمال القديم */
 function hasNumberAt(img, cx, cy, d, tokenR) {
@@ -896,11 +897,21 @@ function blankTilesToBrick(img, tiles, d, medTokenR) {
   /* المقارنة نسبية داخل الصورة نفسها: بلاطة الصحراء يكون «حبرها» أقل بكثير
      من بلاطات تحمل أرقاماً، مهما كان أسلوب الرسم ومهما كان في الرمل من تشققات. */
   var medInk = inks.length ? median(inks) : 0;
-  var thr = Math.min(medInk * 0.45, 0.20);
+  var creams = [];
+  for (i = 0; i < ev.length; i++) if (ev[i].ok) creams.push(ev[i].cream);
+  var medCream = creams.length ? median(creams) : 0;
+  var thrInk = Math.min(medInk * 0.45, 0.20);
+  var thrCream = medCream * 0.45;
   for (i = 0; i < tiles.length; i++) {
-    var blank = ev[i].ok && ev[i].bright > 0.25 && ev[i].ink < thr;
+    /* دليلان مستقلان على خلوّ البلاطة من رقم:
+       ١) «حبر» الرقم أقل بكثير من وسيط اللوحة (ينفع مع الصحراء الشاحبة)
+       ٢) لا يوجد قرص كريمي في مركزها (ينفع مع الصحراء المشبَعة اللون)
+       يكفي أحدهما، ويحرسهما شرط اللون بعدُ. */
+    var blank = ev[i].ok && (ev[i].ink < thrInk ||
+                             (medCream > 0.15 && ev[i].cream < thrCream));
     tiles[i].hasNumber = !blank;
     tiles[i].inkFrac = ev[i].ink;
+    tiles[i].creamFrac = ev[i].cream;
     if (blank && looksBlankable(tiles[i].rgb)) blanks.push(i);
   }
   var changed = 0;
@@ -1616,6 +1627,7 @@ function applyDesertRule(tiles) {
     tiles[i].terrain = tmp[i].terrain;
     tiles[i].hasNumber = tmp[i].hasNumber;
     tiles[i].inkFrac = tmp[i].inkFrac;
+    tiles[i].creamFrac = tmp[i].creamFrac;
   }
   return n;
 }
@@ -2014,6 +2026,7 @@ function buildDiagReport() {
            ' ' + Math.round(hsv[0]) + ',' + hsv[1].toFixed(2) + ',' + hsv[2].toFixed(2) +
            ' ' + (t.hasNumber === false ? 'no' : 'yes') +
            ' ink=' + (t.inkFrac !== undefined ? t.inkFrac.toFixed(3) : '-') +
+           ' cream=' + (t.creamFrac !== undefined ? t.creamFrac.toFixed(3) : '-') +
            ' ' + Math.round(t.x) + ',' + Math.round(t.y));
   }
   if (S.result) {
