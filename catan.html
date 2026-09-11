@@ -197,8 +197,13 @@ td.nm{text-align:right;font-weight:600;white-space:nowrap}
     <input type="range" id="mR" min="-45" max="45" value="0">
   </div>
 
-  <label class="field">معلومات تقنية (صوّرها لي إن بقيت مشكلة)</label>
+  <label class="field">معلومات تقنية</label>
   <div class="note" id="diag" style="font-family:monospace;font-size:12.5px;direction:ltr;text-align:left">—</div>
+  <div class="hint">إن بقيت بلاطة نوعها غلط، اضغط الزر التالي ثم الصق النص في المحادثة.</div>
+  <div class="minirow">
+    <button class="mini" id="bCopyDiag">📋 انسخ تقرير التشخيص</button>
+  </div>
+  <textarea id="diagText" style="position:absolute;left:-9999px;top:0" aria-hidden="true"></textarea>
 
   <div id="ruleWrap" hidden>
     <label class="field">جدول التحقق من القوانين</label>
@@ -651,7 +656,7 @@ function absCost(f, tIdx) {
   else if (id === 'stone')  c = Math.max(0, f.S - 0.22) * 95 + Math.abs(f.Vn - 0.68) * 14;
   else if (id === 'desert') c = hueDist(f.H, 42) / 5 * Math.min(1, f.S / 0.22) +
                                  Math.max(0, f.S - 0.42) * 55 + Math.max(0, 0.75 - f.Vn) * 35;
-  return c + terrainDistance(f.labN, tIdx) * 0.35;
+  return c + terrainDistance(f.labN, tIdx) * 0.35 + familyPenalty(f, tIdx);
 }
 /* مقارنات نسبية: تحسم التشابه بين الأخضرين وبين القمح والصحراء مهما اختلف أسلوب الرسم */
 function relCost(feats, asg) {
@@ -677,16 +682,16 @@ function relCost(feats, asg) {
 }
 /* أفضل إسناد بحيث لا تتكرر التضاريس، مع حساب التكاليف المطلقة والنسبية معاً */
 /* لون واضح الخضرة لا يكون طوباً ولا قمحاً ولا صحراء، والعكس صحيح.
-   يُطبَّق فقط عند وضوح اللون تماماً، مع منطقة حياد بين العائلتين. */
-function familyAllows(f, tIdx) {
+   عقوبة طاغية لا منع قاطع، حتى لا يسقط القيد كله إذا تعذّر إرضاؤه. */
+function familyPenalty(f, tIdx) {
   var id = TERRAINS[tIdx].id;
-  if (f.S <= 0.28) return true;                       /* لون باهت: لا حكم */
+  if (f.S <= 0.28) return 0;                          /* لون باهت: لا حكم */
   var h = f.H, sh = signedHue(h);
   var clearlyGreen = (h >= 75 && h <= 165);
   var clearlyWarm  = (sh >= -20 && sh <= 55);
-  if (clearlyGreen && (id === 'brick' || id === 'wheat' || id === 'desert')) return false;
-  if (clearlyWarm && (id === 'wood' || id === 'sheep')) return false;
-  return true;
+  if (clearlyGreen && (id === 'brick' || id === 'wheat' || id === 'desert')) return 150;
+  if (clearlyWarm && (id === 'wood' || id === 'sheep')) return 150;
+  return 0;
 }
 function chooseLabels(feats, allowDesert) {
   var k = feats.length, best = null, bestC = 1e18;
@@ -695,28 +700,21 @@ function chooseLabels(feats, allowDesert) {
   if (allowDesert === false) {
     for (var z = 0; z < TERRAINS.length; z++) if (TERRAINS[z].id === 'desert') used[z] = true;
   }
-  function search(useFamily) {
-    best = null; bestC = 1e18;
-    (function rec(i, acc) {
-      if (acc >= bestC) return;
-      if (i === k) {
-        var total = acc + relCost(feats, cur);
-        if (total < bestC) { bestC = total; best = cur.slice(); }
-        return;
-      }
-      for (var t = 0; t < TERRAINS.length; t++) {
-        if (used[t]) continue;
-        if (useFamily && !familyAllows(feats[i], t)) continue;
-        used[t] = true; cur[i] = t;
-        rec(i + 1, acc + absCost(feats[i], t) * feats[i].size);
-        used[t] = false; cur[i] = -1;
-      }
-    })(0, 0);
-    return best;
-  }
-  var r = search(true);
-  if (!r) r = search(false);      /* إن لم يوجد حلّ بالقيد، نرفعه */
-  return r;
+  (function rec(i, acc) {
+    if (acc >= bestC) return;
+    if (i === k) {
+      var total = acc + relCost(feats, cur);
+      if (total < bestC) { bestC = total; best = cur.slice(); }
+      return;
+    }
+    for (var t = 0; t < TERRAINS.length; t++) {
+      if (used[t]) continue;
+      used[t] = true; cur[i] = t;
+      rec(i + 1, acc + absCost(feats[i], t) * feats[i].size);
+      used[t] = false; cur[i] = -1;
+    }
+  })(0, 0);
+  return best;
 }
 /* لون الحد الفاصل بين البلاطات: نقيسه من منتصفات المسافات بين المراكز المتجاورة */
 function borderColorOf(img, tiles, d) {
@@ -826,7 +824,8 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR, noDesert) {
       var v = terrainDistance(feats[i].labN, t2);
       if (v < bestV) { bestV = v; bestT = t2; }
     }
-    if (terrainDistance(feats[i].labN, chosen) > 32 && bestV < 20) chosen = bestT;
+    if (terrainDistance(feats[i].labN, chosen) > 32 && bestV < 20 &&
+        familyPenalty(feats[i], bestT) === 0) chosen = bestT;
     for (var q2 = 0; q2 < cl[i].items.length; q2++) {
       tiles[idxs[cl[i].items[q2]]].terrain = TERRAINS[chosen].id;
     }
@@ -1633,6 +1632,7 @@ function detect() {
                  hasToken:!!t.hasToken, tokenR:(t.tokenR || res.tokenRadius) / sc };
       });
       S.result = null; S.assign = null; S.sel = -1;
+      S.diagRes = res;
       $('diag').textContent = 'img ' + S.origW + 'x' + S.origH +
         ' | work ' + S.work.width + 'x' + S.work.height +
         ' | method ' + (res.method || 'tokens') +
@@ -1919,6 +1919,69 @@ $('b3').addEventListener('click', function () {
     if (!blob) { note('err', 'تعذّر تجهيز الصورة. جرّب مرة أخرى.'); return; }
     saveBlob(blob, 'catan-numbers.png');
   }, 'image/png');
+});
+
+/* ---------- تقرير التشخيص ---------- */
+function buildDiagReport() {
+  var L = [];
+  L.push('CATAN DIAG');
+  L.push('img=' + S.origW + 'x' + S.origH +
+         ' work=' + (S.work ? S.work.width + 'x' + S.work.height : '-') +
+         ' scale=' + (S.work ? S.work.scale.toFixed(3) : '-'));
+  var r = S.diagRes || {};
+  L.push('method=' + (r.method || 'tokens') +
+         ' tiles=' + S.tiles.length +
+         ' d=' + S.d.toFixed(1) +
+         ' tokenR=' + S.tokenR.toFixed(1) +
+         (r.preset ? ' preset=' + r.preset.map(function (x) { return x.toFixed(2); }).join('/') : '') +
+         (r.landScore !== undefined ? ' landScore=' + r.landScore.toFixed(2) : '') +
+         (r.hexMode ? ' hexMode=1' : '') +
+         (r.lattice && r.lattice.error !== undefined ? ' err=' + r.lattice.error.toFixed(2) : ''));
+  var counts = {};
+  for (var i = 0; i < S.tiles.length; i++) {
+    counts[S.tiles[i].terrain] = (counts[S.tiles[i].terrain] || 0) + 1;
+  }
+  var cl = [];
+  for (var k in counts) cl.push(k + ':' + counts[k]);
+  L.push('counts ' + cl.join(' '));
+  L.push('# idx terrain R,G,B H,S,V hasNum x,y');
+  for (i = 0; i < S.tiles.length; i++) {
+    var t = S.tiles[i], rgb = t.rgb || [0, 0, 0];
+    var hsv = CORE.rgb2hsv(rgb[0], rgb[1], rgb[2]);
+    L.push(i + ' ' + t.terrain +
+           ' ' + Math.round(rgb[0]) + ',' + Math.round(rgb[1]) + ',' + Math.round(rgb[2]) +
+           ' ' + Math.round(hsv[0]) + ',' + hsv[1].toFixed(2) + ',' + hsv[2].toFixed(2) +
+           ' ' + (t.hasNumber === false ? 'no' : 'yes') +
+           ' ' + Math.round(t.x) + ',' + Math.round(t.y));
+  }
+  if (S.result) {
+    for (i = 0; i < S.result.order.length; i++) {
+      var id2 = S.result.order[i];
+      L.push('nums ' + id2 + ' = ' + S.result.numbersOf[id2].join(','));
+    }
+  }
+  return L.join('\n');
+}
+$('bCopyDiag').addEventListener('click', function () {
+  if (!S.tiles.length) { note('warn', 'ارفع صورة أولاً.'); return; }
+  var txt = buildDiagReport();
+  var done = function () { $('bCopyDiag').textContent = '✅ تم النسخ — الصقه في المحادثة'; };
+  var fail = function () {
+    var ta = $('diagText');
+    ta.style.position = 'static'; ta.style.left = '0';
+    ta.style.width = '100%'; ta.style.height = '160px';
+    ta.value = txt; ta.select();
+    $('bCopyDiag').textContent = '⬆️ انسخ النص من المربع بالأعلى';
+  };
+  $('diagText').value = txt;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done, fail);
+  } else {
+    try {
+      var ta2 = $('diagText'); ta2.select();
+      if (document.execCommand('copy')) done(); else fail();
+    } catch (e) { fail(); }
+  }
 });
 
 /* ---------- الإعدادات المتقدمة ---------- */
