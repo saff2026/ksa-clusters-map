@@ -765,6 +765,34 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR, noDesert) {
   }
 }
 
+/* هل يحمل مركز هذه البلاطة قرص رقم قديم؟
+   القرص: مساحة فاتحة منخفضة التشبّع، وبداخلها «حبر» الرقم (داكن أو أحمر).
+   الصحراء: فاتحة كذلك لكن بلا حبر. القرار مستقل تماماً عن لون التضاريس. */
+function hasNumberAt(img, cx, cy, d, tokenR) {
+  var W = img.width, H = img.height, dat = img.data;
+  /* نفحص داخل القرص نفسه: نصف القطر يتبع حجم القرص المكتشف لا حجم البلاطة */
+  var base = tokenR ? tokenR * 0.72 : d * 0.18;
+  var r = Math.min(Math.max(base, d * 0.07), d * 0.22);
+  var bright = 0, ink = 0, tot = 0;
+  var step = Math.max(1, Math.round(r / 14));
+  for (var y = Math.round(cy - r); y <= cy + r; y += step) {
+    for (var x = Math.round(cx - r); x <= cx + r; x += step) {
+      if (x < 0 || y < 0 || x >= W || y >= H) continue;
+      if (Math.hypot(x - cx, y - cy) > r) continue;
+      var p = (y * W + x) * 4;
+      if (dat[p+3] < 24) continue;
+      tot++;
+      var mx = Math.max(dat[p], dat[p+1], dat[p+2]) / 255;
+      var mn = Math.min(dat[p], dat[p+1], dat[p+2]) / 255;
+      var sat = mx ? (mx - mn) / mx : 0;
+      if (mx > 0.70 && sat < 0.42) bright++;
+      else if (mx < 0.60 || sat > 0.50) ink++;
+    }
+  }
+  if (tot < 12) return true;
+  return (bright / tot) > 0.32 && (ink / tot) > 0.025;
+}
+
 /* ---------- التحليل الكامل للصورة ---------- */
 function analyzeImage(img, vMin, sMax, noDesert) {
   var det = detectTokens(img, vMin, sMax);
@@ -1274,6 +1302,7 @@ return {
   sampleColor:sampleColor, completeBoard:completeBoard, classifyTiles:classifyTiles,
   analyzeImage:analyzeImage, analyzeBest:analyzeBest, MASK_PRESETS:MASK_PRESETS,
   detectByLand:detectByLand, findLandBox:findLandBox, ROW_PATTERNS:ROW_PATTERNS,
+  hasNumberAt:hasNumberAt,
   buildAdjacency:buildAdjacency, tierSlots:tierSlots,
   assignNumbers:assignNumbers, checkRules:checkRules
 };
@@ -1351,12 +1380,31 @@ $('bApply').addEventListener('click', function () {
   invalidate();
 });
 
-/* ---------- بلاطة الصحراء تُعتبر طوباً دائماً ---------- */
-/* تُكتشف الصحراء بدقة (هي البلاطة بلا رقم قديم) ثم تُحوّل إلى طوب،
-   لأن اللاعب يستبدلها ببلاطة طوب على الطاولة. */
+/* ---------- كل بلاطة بلا رقم قديم تُعتبر طوباً ---------- */
+/* القرار لا يعتمد على لون البلاطة إطلاقاً، بل على وجود رقم قديم في مركزها،
+   لأن اللاعب يستبدل البلاطة الفارغة ببلاطة طوب على الطاولة. */
 function applyDesertRule(tiles) {
-  var n = 0;
-  for (var i = 0; i < tiles.length; i++) {
+  var i, n = 0, blanks = [];
+  var sc = S.work ? S.work.scale : 1;
+  for (i = 0; i < tiles.length; i++) {
+    var hasNum = true;
+    if (S.work && S.d > 0) {
+      try {
+        hasNum = CORE.hasNumberAt(S.work, tiles[i].x * sc, tiles[i].y * sc,
+                                  S.d * sc, (tiles[i].tokenR || S.tokenR) * sc);
+      } catch (e) { hasNum = true; }
+    }
+    tiles[i].hasNumber = hasNum;
+    if (!hasNum) blanks.push(i);
+  }
+  /* إن بدت بلاطات كثيرة فارغة فالقياس غير موثوق، فنكتفي بتحويل ما صُنّف صحراءَ */
+  if (blanks.length >= 1 && blanks.length <= 3) {
+    for (i = 0; i < blanks.length; i++) {
+      if (tiles[blanks[i]].terrain !== 'brick') n++;
+      tiles[blanks[i]].terrain = 'brick';
+    }
+  }
+  for (i = 0; i < tiles.length; i++) {
     if (tiles[i].terrain === 'desert') { tiles[i].terrain = 'brick'; n++; }
   }
   return n;
@@ -1446,7 +1494,7 @@ function detect() {
         (res.lattice && res.lattice.error !== undefined ? ' | err ' + res.lattice.error.toFixed(2) : '');
       var turned = applyDesertRule(S.tiles);
       var extra = turned
-        ? ' وحوّلتُ بلاطة الصحراء إلى <b>طوب</b> فستأخذ رقماً.'
+        ? ' وحوّلتُ <b>' + ar(turned) + '</b> بلاطة بلا رقم إلى <b>طوب</b> فستأخذ رقماً.'
         : '';
       note('ok', '✅ قرأتُ <b>' + ar(S.tiles.length) + '</b> بلاطة.' + extra +
         '<br>اضغط الزر الأخضر لتوزيع الأرقام.');
