@@ -6,255 +6,201 @@
 <title>موزّع أرقام كاتان</title>
 <style>
 :root{
-  --bg:#0e1a2b; --bg2:#132842; --card:#17304f; --line:#26507f;
-  --txt:#eaf1fa; --dim:#a8c0dc; --gold:#ffcf5c; --green:#37b56b;
-  --red:#e05a4f; --blue:#3a86d6;
+  --bg:#eef1ef; --surface:#ffffff; --surface2:#f6f8f7;
+  --ink:#16211d; --dim:#5d6b66; --line:#d7ded9;
+  --go:#0e7c55; --goInk:#ffffff; --gold:#b8860b;
+  --warn-bg:#fdf3dc; --warn-ink:#6b4e05; --warn-line:#e2c470;
+  --err-bg:#fcecea; --err-ink:#7d2018; --err-line:#e3a79f;
+  --ok-bg:#e6f4ec; --ok-ink:#0d5236; --ok-line:#9ccdb5;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1614; --surface:#18201d; --surface2:#131a18;
+    --ink:#e8efeb; --dim:#9aaaa4; --line:#2b3532;
+    --go:#17a16f; --goInk:#04150e; --gold:#e0b55a;
+    --warn-bg:#2e2611; --warn-ink:#f2d894; --warn-line:#5c4c1c;
+    --err-bg:#2f1815; --err-ink:#f5b9b1; --err-line:#5e2a24;
+    --ok-bg:#0f2a1f; --ok-ink:#a8dcc2; --ok-line:#215741;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1614; --surface:#18201d; --surface2:#131a18;
+  --ink:#e8efeb; --dim:#9aaaa4; --line:#2b3532;
+  --go:#17a16f; --goInk:#04150e; --gold:#e0b55a;
+  --warn-bg:#2e2611; --warn-ink:#f2d894; --warn-line:#5c4c1c;
+  --err-bg:#2f1815; --err-ink:#f5b9b1; --err-line:#5e2a24;
+  --ok-bg:#0f2a1f; --ok-ink:#a8dcc2; --ok-line:#215741;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
-  background:linear-gradient(180deg,#0b1523,#0e1a2b 400px);
-  color:var(--txt);
-  font-family:'Segoe UI',Tahoma,Arial,sans-serif;
-  font-size:15px; line-height:1.7;
-  direction:rtl; text-align:right;
+  background:var(--bg); color:var(--ink);
+  font-family:'Segoe UI','Noto Sans Arabic',Tahoma,Arial,sans-serif;
+  font-size:16px; line-height:1.75; direction:rtl; text-align:right;
 }
-.wrap{max-width:1280px;margin:0 auto;padding:18px 16px 60px}
-header.top{
-  background:linear-gradient(135deg,#12365f,#0f2744);
-  border:1px solid var(--line); border-radius:16px;
-  padding:18px 20px; margin-bottom:16px;
+.page{max-width:660px;margin:0 auto;padding-inline:16px;padding-block:22px 56px}
+h1{margin:0 0 4px;font-size:27px;line-height:1.3;text-wrap:balance}
+.sub{margin:0 0 22px;color:var(--dim);font-size:15px}
+.actions{display:flex;flex-direction:column;gap:10px}
+.act{
+  display:flex;align-items:center;gap:12px;width:100%;
+  padding:16px 18px;border-radius:14px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);font-family:inherit;
+  font-size:19px;font-weight:700;cursor:pointer;text-align:right;
+  transition:transform .06s ease, box-shadow .15s ease;
 }
-header.top h1{margin:0 0 6px;font-size:24px;color:var(--gold)}
-header.top p{margin:0;color:var(--dim);font-size:14px}
-.layout{display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start}
-@media(max-width:980px){.layout{grid-template-columns:1fr}}
-.card{
-  background:var(--card); border:1px solid var(--line);
-  border-radius:14px; padding:14px 16px; margin-bottom:14px;
+.act:hover:not(:disabled){box-shadow:0 3px 14px #0000001a}
+.act:active:not(:disabled){transform:translateY(1px)}
+.act:disabled{opacity:.42;cursor:not-allowed}
+.act .badge{
+  flex:none;width:32px;height:32px;border-radius:50%;
+  background:var(--surface2);border:1px solid var(--line);color:var(--dim);
+  display:flex;align-items:center;justify-content:center;font-size:16px;
 }
-.card h2{
-  margin:0 0 10px; font-size:16px; color:var(--gold);
-  display:flex; align-items:center; gap:8px;
+.act.on{background:var(--go);color:var(--goInk);border-color:transparent}
+.act.on .badge{background:#ffffff2e;border-color:#ffffff45;color:inherit}
+.act:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.mini{
+  padding:9px 14px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);font-family:inherit;
+  font-size:14px;font-weight:600;cursor:pointer;
 }
-.card h2 .n{
-  background:var(--gold); color:#10243c; width:24px; height:24px;
-  border-radius:50%; display:inline-flex; align-items:center;
-  justify-content:center; font-size:13px; font-weight:bold; flex:none;
+.mini:hover{background:var(--surface2)}
+.mini:disabled{opacity:.42;cursor:not-allowed}
+.minirow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.note{
+  margin-top:14px;padding:11px 14px;border-radius:11px;font-size:14.5px;
+  background:var(--surface2);border:1px solid var(--line);color:var(--dim);
 }
-.hint{color:var(--dim);font-size:13px;margin:6px 0}
-button{
-  font-family:inherit; font-size:14px; padding:9px 14px; border-radius:9px;
-  border:1px solid var(--line); background:#1d3c63; color:var(--txt);
-  cursor:pointer; font-weight:600;
-}
-button:hover{background:#265084}
-button:disabled{opacity:.45;cursor:not-allowed}
-button.primary{background:var(--blue);border-color:#5aa0ea}
-button.primary:hover{background:#4f96e4}
-button.go{background:var(--green);border-color:#4fd18b}
-button.go:hover{background:#43c77e}
-button.warn{background:#7a3a34;border-color:#a85a50}
-.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-label.field{display:block;margin:10px 0 4px;font-size:13px;color:var(--dim)}
-select,input[type=text],input[type=number]{
-  width:100%; padding:8px 10px; border-radius:8px; font-family:inherit;
-  font-size:14px; border:1px solid var(--line); background:#0f2542; color:var(--txt);
-}
-input[type=range]{width:100%}
-#drop{
-  border:2px dashed #3d6ea8; border-radius:14px; padding:26px 16px;
-  text-align:center; background:#102a49; cursor:pointer; transition:.15s;
-}
-#drop.over{background:#16406f;border-color:var(--gold)}
-#drop .big{font-size:34px}
-#drop b{color:var(--gold)}
+.note.ok{background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok-ink)}
+.note.warn{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn-ink)}
+.note.err{background:var(--err-bg);border-color:var(--err-line);color:var(--err-ink)}
+.note b{font-weight:800}
+#stage{margin-top:16px}
 .canvasBox{
-  position:relative; background:#0a1727; border:1px solid var(--line);
-  border-radius:12px; padding:8px; overflow:auto; max-height:75vh;
+  background:var(--surface2);border:1px solid var(--line);
+  border-radius:14px;padding:8px;overflow:auto;
 }
-#view{display:block;max-width:100%;height:auto;border-radius:8px;cursor:crosshair}
-.toolbar{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
-.tool{
-  padding:7px 12px;border-radius:8px;border:1px solid var(--line);
-  background:#1a3559;cursor:pointer;font-size:13px;font-weight:600;
+#view{display:block;max-width:100%;height:auto;border-radius:9px;cursor:pointer}
+.fixrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px}
+.chip{
+  display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:10px;
+  border:2px solid var(--line);background:var(--surface);color:var(--ink);
+  font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;
 }
-.tool.on{background:var(--gold);color:#10243c;border-color:var(--gold)}
-.terr{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.terr .t{
-  display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;
-  border:2px solid transparent;background:#0f2542;cursor:pointer;font-size:13px;
+.chip i{width:15px;height:15px;border-radius:4px;display:inline-block;border:1px solid #0003}
+.chip.on{border-color:var(--gold);background:var(--surface2)}
+.chip:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.counts{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px;font-size:13.5px}
+.cnt{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;
+  background:var(--surface2);border:1px solid var(--line);color:var(--dim)}
+.cnt i{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid #0003}
+.cnt b{color:var(--ink)}
+details{margin-top:20px;background:var(--surface);border:1px solid var(--line);
+  border-radius:13px;padding:12px 16px}
+summary{cursor:pointer;font-weight:700;font-size:15.5px}
+summary:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.field{display:block;margin:14px 0 5px;font-size:13.5px;color:var(--dim);font-weight:600}
+select,input[type=text]{
+  width:100%;padding:9px 11px;border-radius:9px;font-family:inherit;font-size:15px;
+  border:1px solid var(--line);background:var(--surface2);color:var(--ink);
 }
-.terr .t.on{border-color:var(--gold)}
-.terr .t i{width:15px;height:15px;border-radius:4px;display:inline-block;border:1px solid #00000055}
-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
-th,td{border:1px solid var(--line);padding:6px 8px;text-align:center}
-th{background:#12304f;color:var(--gold);font-weight:700}
-td.name{text-align:right;font-weight:600}
-.num{
-  display:inline-block;min-width:26px;padding:1px 5px;border-radius:6px;
-  background:#0f2542;border:1px solid var(--line);font-weight:700;margin:1px;
-}
-.num.hot{color:#ff8a7a;border-color:#8c4038}
-.msg{padding:9px 12px;border-radius:9px;margin:8px 0;font-size:13.5px}
-.msg.ok{background:#123a26;border:1px solid #2f7d52;color:#b6f0cf}
-.msg.warn{background:#463618;border:1px solid #9c7a2a;color:#ffe2a1}
-.msg.err{background:#44201d;border:1px solid #a3483e;color:#ffc4bc}
-.msg.info{background:#122e4c;border:1px solid #2f5e96;color:#cfe4ff}
-.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:12.5px;color:var(--dim);margin-top:8px}
-.legend span{display:flex;align-items:center;gap:5px}
-.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
-.spinner{
-  display:none;width:18px;height:18px;border:3px solid #ffffff33;
-  border-top-color:var(--gold);border-radius:50%;
-  animation:sp .8s linear infinite;vertical-align:middle;margin-left:8px
-}
+input[type=range]{width:100%;accent-color:var(--go)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px;
+  font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:6px 7px;text-align:center}
+th{background:var(--surface2);font-weight:700}
+td.nm{text-align:right;font-weight:600;white-space:nowrap}
+.num{display:inline-block;min-width:25px;padding:1px 5px;border-radius:6px;margin:1px;
+  background:var(--surface2);border:1px solid var(--line);font-weight:700}
+.num.hot{color:#c0392b;border-color:#c0392b66}
+.foot{margin-top:26px;text-align:center;color:var(--dim);font-size:13px}
+.spin{display:none;width:17px;height:17px;border:3px solid var(--line);
+  border-top-color:var(--go);border-radius:50%;animation:sp .8s linear infinite}
+.busy .spin{display:inline-block}
 @keyframes sp{to{transform:rotate(360deg)}}
-.busy .spinner{display:inline-block}
-details{margin-top:8px;background:#0f2542;border:1px solid var(--line);border-radius:9px;padding:8px 12px}
-summary{cursor:pointer;color:var(--gold);font-weight:600;font-size:14px}
-details p,details li{font-size:13.5px;color:var(--dim)}
-.kv{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:3px 0;border-bottom:1px dashed #ffffff14}
-.kv b{color:var(--gold)}
-.foot{text-align:center;color:#6f8bab;font-size:12.5px;margin-top:26px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<div class="wrap" dir="rtl" lang="ar">
+<div class="page" dir="rtl" lang="ar">
 
-<header class="top">
-  <h1>🎲 موزّع أرقام كاتان الذكي</h1>
-  <p>ارفع صورة خريطة كاتان، يتعرّف البرنامج على البلاطات السداسية والتضاريس، ثم يوزّع الأرقام حسب قوانين «الحظوظ» ويرسمها فوق الأرقام القديمة في نفس الصورة.</p>
-</header>
+<h1>🎲 موزّع أرقام كاتان</h1>
+<p class="sub">ثلاث خطوات فقط: ارفع الصورة، وزّع الأرقام، نزّل الصورة.</p>
 
-<div class="layout">
-<main>
+<div class="actions">
+  <button class="act on" id="b1"><span class="badge">١</span><span>📷 ارفع صورة الخريطة</span><span class="spin" id="spin"></span></button>
+  <button class="act" id="b2" disabled><span class="badge">٢</span><span>🎯 وزّع الأرقام</span></button>
+  <button class="act" id="b3" disabled><span class="badge">٣</span><span>⬇️ نزّل الصورة</span></button>
+</div>
+<input type="file" id="file" accept="image/*" hidden>
 
-  <div class="card">
-    <h2><span class="n">١</span> ارفع صورة الخريطة</h2>
-    <div id="drop">
-      <div class="big">🖼️</div>
-      <div>اسحب الصورة هنا، أو <b>اضغط للاختيار من جهازك</b></div>
-      <div class="hint">الصيغ المدعومة: PNG و JPG و WEBP — أي حجم وأي خريطة</div>
-    </div>
-    <input type="file" id="file" accept="image/*" style="display:none">
-    <div id="loadMsg"></div>
-    <details>
-      <summary>❓ كيف أستخدم البرنامج؟ (خطوة بخطوة)</summary>
-      <ol style="font-size:13.5px;color:#a8c0dc;padding-left:0;padding-right:18px;line-height:2">
-        <li>اضغط على المربّع بالأعلى واختر صورة خريطة كاتان من جهازك (أو اسحبها، أو الصقها بـ Ctrl+V).</li>
-        <li>ينطلق الكشف التلقائي فوراً، وتظهر البلاطات ملوّنة ومكتوباً عليها اسم التضاريس.</li>
-        <li><b>راجع الأسماء جيداً.</b> إذا أخطأ البرنامج في بلاطة: اختر النوع الصحيح من شريط الألوان ثم اضغط على تلك البلاطة.</li>
-        <li>تحقق من جدول «إحصاء التضاريس» على اليسار: المفترض ٤ بلاطات لكل تضاريس و٣ للحجر.</li>
-        <li>اضغط الزر الأخضر <b>«🎯 وزّع الأرقام»</b>.</li>
-        <li>راجع جدول «التحقق من القوانين»، وإن لم يعجبك الترتيب اضغط <b>«🎲 إعادة التوزيع»</b>.</li>
-        <li>اضغط <b>«⬇️ تحميل الصورة النهائية»</b>.</li>
-      </ol>
-      <p>إذا فشل الكشف التلقائي (صورة غير واضحة أو أرقامها غير دائرية)، استخدم زر
-      <b>«⚙️ إنشاء شبكة يدوية»</b> واضبط الحجم والموضع والدوران حتى تنطبق الشبكة على الخريطة.</p>
-    </details>
+<div class="note" id="status">اختر صورة خريطة كاتان من جهازك للبدء.</div>
+
+<div id="stage" hidden>
+  <div class="canvasBox"><canvas id="view"></canvas></div>
+  <div class="counts" id="counts"></div>
+  <div class="note" id="fixhint">لو نوع أي بلاطة غلط: <b>اضغط عليها</b> ثم اختر النوع الصحيح من الأسفل.</div>
+  <div class="fixrow" id="chips"></div>
+  <div class="minirow">
+    <button class="mini" id="bShuffle" disabled>🎲 جرّب توزيعاً آخر</button>
+    <button class="mini" id="bEye">👁️ إخفاء الأسماء</button>
   </div>
-
-  <div class="card" id="boardCard" style="display:none">
-    <h2><span class="n">٢</span> لوحة المراجعة والتعديل <span class="spinner" id="spin"></span></h2>
-    <div id="detectMsg"></div>
-
-    <div class="toolbar">
-      <div class="tool on" data-mode="edit">✏️ تعديل التضاريس</div>
-      <div class="tool" data-mode="add">➕ إضافة بلاطة</div>
-      <div class="tool" data-mode="del">🗑️ حذف بلاطة</div>
-      <div class="tool" data-mode="move">✋ تحريك بلاطة</div>
-      <div class="tool" id="toggleOverlay">👁️ إظهار/إخفاء الشبكة</div>
-    </div>
-    <div class="terr" id="terrPalette"></div>
-    <div class="hint" id="modeHint">اضغط على أي بلاطة لتغيير نوع تضاريسها إلى النوع المحدد بالأعلى.</div>
-
-    <div class="canvasBox">
-      <canvas id="view"></canvas>
-    </div>
-
-    <div class="btnrow">
-      <button id="btnRedetect">🔄 إعادة الكشف التلقائي</button>
-      <button id="btnManual">⚙️ إنشاء شبكة يدوية</button>
-      <button id="btnClear" class="warn">✖️ مسح كل البلاطات</button>
-    </div>
-  </div>
-
-</main>
-
-<aside>
-
-  <div class="card" id="countCard" style="display:none">
-    <h2><span class="n">٣</span> إحصاء التضاريس</h2>
-    <table id="countTable"></table>
-    <div id="countMsg"></div>
-  </div>
-
-  <div class="card" id="optCard" style="display:none">
-    <h2><span class="n">٤</span> توزيع الأرقام</h2>
-
-    <label class="field">إذا كان عدد بلاطات تضاريس أقل من ٤، احذف:</label>
-    <select id="dropMode">
-      <option value="weak">الحظ الأضعف (٣/١١) — مُوصى به</option>
-      <option value="strong">الحظ الأقوى (٦/٨)</option>
-    </select>
-
-    <label class="field">شكل الأرقام</label>
-    <select id="digits">
-      <option value="latin">أرقام إنجليزية 6 8 (المعتاد في اللعبة)</option>
-      <option value="arabic">أرقام عربية ٦ ٨</option>
-    </select>
-
-    <label class="field">حجم رمز الرقم: <b id="szVal">١٠٠٪</b></label>
-    <input type="range" id="tokenSize" min="60" max="180" value="100">
-
-    <div class="btnrow">
-      <button class="go" id="btnAssign">🎯 وزّع الأرقام</button>
-      <button class="primary" id="btnReshuffle">🎲 إعادة التوزيع</button>
-    </div>
-  </div>
-
-  <div class="card" id="ruleCard" style="display:none">
-    <h2><span class="n">٥</span> التحقق من القوانين</h2>
-    <div id="ruleMsgs"></div>
-    <table id="ruleTable"></table>
-  </div>
-
-  <div class="card" id="dlCard" style="display:none">
-    <h2><span class="n">٦</span> تحميل الصورة</h2>
-    <div class="hint">تُحفظ الصورة بحجمها ودقتها الأصلية مع الأرقام الجديدة فوق القديمة.</div>
-    <div class="btnrow">
-      <button class="go" id="btnDownload">⬇️ تحميل الصورة النهائية</button>
-    </div>
-    <div id="dlMsg"></div>
-  </div>
-
-  <div class="card">
-    <h2>📖 شرح القوانين</h2>
-    <details open>
-      <summary>الحظوظ الأربعة</summary>
-      <div class="kv"><span>الحظ ١ (الأقوى)</span><b>٦ أو ٨</b></div>
-      <div class="kv"><span>الحظ ٢</span><b>٥ أو ٩</b></div>
-      <div class="kv"><span>الحظ ٣</span><b>٤ أو ١٠</b></div>
-      <div class="kv"><span>الحظ ٤ (الأضعف)</span><b>٣ أو ١١</b></div>
-    </details>
-    <details>
-      <summary>القاعدة الذهبية</summary>
-      <ul>
-        <li>كل تضاريس تأخذ رقماً واحداً فقط من كل حظ.</li>
-        <li>الشجر والطوب لا يأخذان نفس الرقم في نفس الحظ.</li>
-        <li>القمح والحجر لا يأخذان نفس الرقم في نفس الحظ.</li>
-        <li>الخرفان تأخذ الرقم الأقل استخداماً في كل حظ لموازنة الخريطة.</li>
-        <li>الصحراء بلا رقم.</li>
-        <li>يحاول البرنامج ألا يضع رقمين قويين (٦ و ٨) بجوار بعضهما.</li>
-      </ul>
-    </details>
-  </div>
-
-</aside>
 </div>
 
-<div class="foot">يعمل بالكامل داخل متصفحك — لا تُرفع صورك لأي خادم.</div>
+<details id="adv">
+  <summary>⚙️ إعدادات متقدمة (لست مضطراً لفتحها)</summary>
+
+  <label class="field" for="digits">شكل الأرقام</label>
+  <select id="digits">
+    <option value="latin">أرقام إنجليزية 6 8 (المعتاد في اللعبة)</option>
+    <option value="arabic">أرقام عربية ٦ ٨</option>
+  </select>
+
+  <label class="field" for="tokenSize">حجم رمز الرقم: <b id="szV">١٠٠٪</b></label>
+  <input type="range" id="tokenSize" min="60" max="180" value="100">
+
+  <label class="field" for="dropMode">إذا كانت بلاطات تضاريس أقل من ٤، احذف</label>
+  <select id="dropMode">
+    <option value="weak">الحظ الأضعف (٣ أو ١١) — مُوصى به</option>
+    <option value="strong">الحظ الأقوى (٦ أو ٨)</option>
+  </select>
+
+  <label class="field">أدوات تصحيح الشبكة</label>
+  <div class="minirow">
+    <button class="mini" id="mFix">✏️ تصحيح النوع</button>
+    <button class="mini" id="mAdd">➕ إضافة بلاطة</button>
+    <button class="mini" id="mDel">🗑️ حذف بلاطة</button>
+    <button class="mini" id="mMove">✋ تحريك بلاطة</button>
+  </div>
+  <div class="minirow">
+    <button class="mini" id="bRedetect">🔄 إعادة الكشف</button>
+    <button class="mini" id="bClear">✖️ مسح كل البلاطات</button>
+    <button class="mini" id="bManual">⚙️ شبكة يدوية</button>
+  </div>
+
+  <div id="manual" hidden>
+    <label class="field" for="mRows">عدد البلاطات في كل صف (من الأعلى للأسفل)</label>
+    <input type="text" id="mRows" value="3,4,5,4,3">
+    <label class="field" for="mSize">حجم البلاطة: <b id="mSizeV">١٠٠٪</b></label>
+    <input type="range" id="mSize" min="40" max="200" value="100">
+    <label class="field" for="mX">الإزاحة الأفقية: <b id="mXV">٠</b></label>
+    <input type="range" id="mX" min="-40" max="40" value="0">
+    <label class="field" for="mY">الإزاحة الرأسية: <b id="mYV">٠</b></label>
+    <input type="range" id="mY" min="-40" max="40" value="0">
+    <label class="field" for="mR">الدوران: <b id="mRV">٠°</b></label>
+    <input type="range" id="mR" min="-45" max="45" value="0">
+  </div>
+
+  <div id="ruleWrap" hidden>
+    <label class="field">جدول التحقق من القوانين</label>
+    <div id="ruleMsg"></div>
+    <table id="ruleTable"></table>
+  </div>
+</details>
+
+<p class="foot">كل شيء يتم داخل متصفحك — صورك لا تُرفع لأي خادم.</p>
+
 </div>
 
 <script>
@@ -355,16 +301,20 @@ function makeRng(seed) {
 }
 
 /* ---------- كشف أقراص الأرقام القديمة (دوائر فاتحة) ---------- */
-function buildTokenMask(img) {
+function buildTokenMask(img, vMin, sMax) {
+  if (vMin === undefined) vMin = 0.62;
+  if (sMax === undefined) sMax = 0.45;
   var W = img.width, H = img.height, d = img.data;
   var mask = new Uint8Array(W * H);
   for (var i = 0, p = 0; i < W * H; i++, p += 4) {
     if (d[p+3] < 24) continue;
     var hsv = rgb2hsv(d[p], d[p+1], d[p+2]);
-    if (hsv[2] > 0.62 && hsv[1] < 0.45) mask[i] = 1;
+    if (hsv[2] > vMin && hsv[1] < sMax) mask[i] = 1;
   }
   return mask;
 }
+/* عتبات متعددة: صور فاتحة، داكنة، أقراص ملوّنة قليلاً */
+var MASK_PRESETS = [[0.62,0.45],[0.55,0.55],[0.70,0.34],[0.48,0.62],[0.78,0.28],[0.40,0.72],[0.30,0.72],[0.22,0.80]];
 function connectedComponents(mask, W, H, minArea, maxArea) {
   var seen = new Uint8Array(W * H);
   var stack = new Int32Array(W * H);
@@ -398,9 +348,9 @@ function connectedComponents(mask, W, H, minArea, maxArea) {
   }
   return out;
 }
-function detectTokens(img) {
+function detectTokens(img, vMin, sMax) {
   var W = img.width, H = img.height;
-  var mask = buildTokenMask(img);
+  var mask = buildTokenMask(img, vMin, sMax);
   var comps = connectedComponents(mask, W, H, 24, Math.round(W * H * 0.05));
   var cand = comps.filter(function (c) {
     return c.ratio > 0.58 && c.ratio < 1.72 && c.fill > 0.5 && c.fill <= 1.0;
@@ -649,25 +599,62 @@ function clusterLabs(labs, thr, maxK) {
   }
   return cl;
 }
-function bestInjective(cost, k) {
-  /* أفضل إسناد بحيث لا تتكرر التضاريس بين المجموعات */
-  var best = null, bestC = 1e18;
+function hueDist(a, b) { var d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+function signedHue(h) { return h > 300 ? h - 360 : h; }
+
+/* تكلفة مطلقة: هل صفات هذا اللون تناسب هذه التضاريس؟ */
+function absCost(f, tIdx) {
+  var id = TERRAINS[tIdx].id, c = 0;
+  /* السطوع يُقاس نسبةً إلى أفتح تضاريس في نفس الصورة، فتعمل القاعدة في الصور المعتمة والساطعة */
+  if (id === 'wheat')       c = hueDist(f.H, 48) / 5 + Math.max(0, 0.40 - f.S) * 45 + Math.max(0, 0.70 - f.Vn) * 35;
+  else if (id === 'brick')  c = hueDist(f.H, 16) / 5 + Math.max(0, 0.30 - f.S) * 45;
+  else if (id === 'wood')   c = hueDist(f.H, 118) / 7 + Math.max(0, f.Vn - 0.65) * 40 + Math.max(0, 0.14 - f.S) * 30;
+  else if (id === 'sheep')  c = hueDist(f.H, 95) / 7 + Math.max(0, 0.60 - f.Vn) * 35 + Math.max(0, 0.14 - f.S) * 30;
+  else if (id === 'stone')  c = Math.max(0, f.S - 0.22) * 95 + Math.abs(f.Vn - 0.68) * 14;
+  else if (id === 'desert') c = hueDist(f.H, 42) / 5 + Math.max(0, f.S - 0.42) * 55 + Math.max(0, 0.75 - f.Vn) * 35;
+  return c + terrainDistance(f.labN, tIdx) * 0.35;
+}
+/* مقارنات نسبية: تحسم التشابه بين الأخضرين وبين القمح والصحراء مهما اختلف أسلوب الرسم */
+function relCost(feats, asg) {
+  var by = {}, i;
+  for (i = 0; i < asg.length; i++) by[TERRAINS[asg[i]].id] = feats[i];
+  var c = 0;
+  if (by.wood && by.sheep && by.wood.Vn >= by.sheep.Vn - 0.02) c += 30;
+  if (by.desert && by.wheat && by.desert.S >= by.wheat.S) c += 26;
+  if (by.desert && by.wheat && by.desert.Vn <= by.wheat.Vn - 0.12) c += 14;
+  if (by.brick && by.wheat && signedHue(by.brick.H) >= signedHue(by.wheat.H)) c += 20;
+  if (by.stone) {
+    var others = ['wood', 'brick', 'wheat', 'sheep'];
+    for (i = 0; i < others.length; i++) {
+      if (by[others[i]] && by.stone.S > by[others[i]].S) c += 16;
+    }
+  }
+  if (by.desert) c += (1 - by.desert.noTok) * 30 - by.desert.noTok * 22;
+  return c;
+}
+/* أفضل إسناد بحيث لا تتكرر التضاريس، مع حساب التكاليف المطلقة والنسبية معاً */
+function chooseLabels(feats) {
+  var k = feats.length, best = null, bestC = 1e18;
   var used = new Array(TERRAINS.length).fill(false);
   var cur = new Array(k).fill(-1);
   (function rec(i, acc) {
     if (acc >= bestC) return;
-    if (i === k) { bestC = acc; best = cur.slice(); return; }
+    if (i === k) {
+      var total = acc + relCost(feats, cur);
+      if (total < bestC) { bestC = total; best = cur.slice(); }
+      return;
+    }
     for (var t = 0; t < TERRAINS.length; t++) {
       if (used[t]) continue;
       used[t] = true; cur[i] = t;
-      rec(i + 1, acc + cost[i][t]);
+      rec(i + 1, acc + absCost(feats[i], t) * feats[i].size);
       used[t] = false; cur[i] = -1;
     }
   })(0, 0);
   return best;
 }
 function classifyTiles(img, tiles, d, tokenMask, medTokenR) {
-  var i, labs = [], ok = [];
+  var i, labs = [], rgbs = [];
   for (i = 0; i < tiles.length; i++) {
     var tr = tiles[i].tokenR || medTokenR || d * 0.24;
     var rIn = Math.max(tr * 1.22, d * 0.27);
@@ -676,52 +663,84 @@ function classifyTiles(img, tiles, d, tokenMask, medTokenR) {
     var c = sampleColor(img, tiles[i].x, tiles[i].y, rIn, rOut,
                         tiles[i].hasToken ? tokenMask : null);
     if (!c) c = sampleColor(img, tiles[i].x, tiles[i].y, 0, d * 0.44, null);
-    if (!c) { labs.push(null); ok.push(false); continue; }
+    if (!c) { labs.push(null); rgbs.push(null); continue; }
     tiles[i].rgb = [Math.round(c.r), Math.round(c.g), Math.round(c.b)];
     labs.push(rgb2lab(c.r, c.g, c.b));
-    ok.push(true);
+    rgbs.push([c.r, c.g, c.b]);
   }
   var idxs = [], L = [];
   for (i = 0; i < labs.length; i++) if (labs[i]) { idxs.push(i); L.push(labs[i]); }
   if (!L.length) return;
   var cl = clusterLabs(L, 17, TERRAINS.length);
 
-  var k = cl.length, cost = [], own = [];
-  for (i = 0; i < k; i++) {
-    var row = [], size = cl[i].items.length;
-    var noTok = 0;
-    for (var q = 0; q < cl[i].items.length; q++) {
-      if (!tiles[idxs[cl[i].items[q]]].hasToken) noTok++;
+  /* بلاطة وحيدة شاذّة اللون وتحمل رقماً قديماً لا يمكن أن تكون تضاريس مستقلة:
+     نضمّها لأقرب مجموعة بدل أن تسرق اسم تضاريس كاملة */
+  var guard = 0;
+  while (cl.length > 2 && guard++ < 8) {
+    var lone = -1;
+    for (i = 0; i < cl.length; i++) {
+      if (cl[i].items.length !== 1) continue;
+      if (!tiles[idxs[cl[i].items[0]]].hasToken) continue;   /* بلا رقم قديم: قد تكون الصحراء */
+      lone = i; break;
     }
-    var frac = noTok / size;
-    for (var t = 0; t < TERRAINS.length; t++) {
-      var c2 = terrainDistance(cl[i].mean, t);
-      if (TERRAINS[t].id === 'desert') c2 += (1 - frac) * 26 - frac * 20;
-      row.push(c2 * size);
+    if (lone < 0) break;
+    var near = -1, nd = 1e9;
+    for (i = 0; i < cl.length; i++) {
+      if (i === lone) continue;
+      var dd = dLab(cl[lone].mean, cl[i].mean);
+      if (dd < nd) { nd = dd; near = i; }
     }
-    cost.push(row);
+    if (near < 0 || nd > 30) break;
+    var A = cl[near], B = cl[lone], na = A.items.length, nb = B.items.length;
+    A.mean = [ (A.mean[0]*na + B.mean[0]*nb) / (na+nb),
+               (A.mean[1]*na + B.mean[1]*nb) / (na+nb),
+               (A.mean[2]*na + B.mean[2]*nb) / (na+nb) ];
+    A.items = A.items.concat(B.items);
+    cl.splice(lone, 1);
+  }
+
+  var feats = [];
+  for (i = 0; i < cl.length; i++) {
+    var sr = 0, sg = 0, sb = 0, noTok = 0, n = cl[i].items.length;
+    for (var q = 0; q < n; q++) {
+      var ti = idxs[cl[i].items[q]];
+      sr += rgbs[cl[i].items[q]][0]; sg += rgbs[cl[i].items[q]][1]; sb += rgbs[cl[i].items[q]][2];
+      if (!tiles[ti].hasToken) noTok++;
+    }
+    var hsv = rgb2hsv(sr / n, sg / n, sb / n);
+    feats.push({ H:hsv[0], S:hsv[1], V:hsv[2], rgb:[sr / n, sg / n, sb / n],
+                 lab:cl[i].mean, size:n, noTok:noTok / n });
+  }
+  /* تسوية السطوع: نقيس كل شيء نسبةً إلى أفتح مجموعة في الصورة نفسها */
+  var maxV = 0.001;
+  for (i = 0; i < feats.length; i++) maxV = Math.max(maxV, feats[i].V);
+  var kNorm = Math.max(0.5, Math.min(2.4, 0.86 / maxV));
+  for (i = 0; i < feats.length; i++) {
+    feats[i].Vn = feats[i].V / maxV;
+    feats[i].labN = rgb2lab(Math.min(255, feats[i].rgb[0] * kNorm),
+                            Math.min(255, feats[i].rgb[1] * kNorm),
+                            Math.min(255, feats[i].rgb[2] * kNorm));
+  }
+  var asg = chooseLabels(feats);
+  for (i = 0; i < cl.length; i++) {
+    var chosen = asg[i];
+    /* إن كان الإسناد بعيداً جداً بينما لون المجموعة يطابق تضاريس أخرى بوضوح، نأخذ الأوضح */
     var bestT = 0, bestV = 1e9;
     for (var t2 = 0; t2 < TERRAINS.length; t2++) {
-      var v = terrainDistance(cl[i].mean, t2);
+      var v = terrainDistance(feats[i].labN, t2);
       if (v < bestV) { bestV = v; bestT = t2; }
     }
-    own.push({ t: bestT, v: bestV });
-  }
-  var asg = bestInjective(cost, k);
-  for (i = 0; i < k; i++) {
-    var chosen = asg[i];
-    if (terrainDistance(cl[i].mean, chosen) > 28 && own[i].v < 18) chosen = own[i].t;
+    if (terrainDistance(feats[i].labN, chosen) > 30 && bestV < 15) chosen = bestT;
     for (var q2 = 0; q2 < cl[i].items.length; q2++) {
-      var ti = idxs[cl[i].items[q2]];
-      tiles[ti].terrain = TERRAINS[chosen].id;
+      tiles[idxs[cl[i].items[q2]]].terrain = TERRAINS[chosen].id;
     }
   }
   for (i = 0; i < tiles.length; i++) if (!tiles[i].terrain) tiles[i].terrain = 'desert';
 }
 
 /* ---------- التحليل الكامل للصورة ---------- */
-function analyzeImage(img) {
-  var det = detectTokens(img);
+function analyzeImage(img, vMin, sMax) {
+  var det = detectTokens(img, vMin, sMax);
   if (det.tokens.length < 3) {
     return { ok:false, reason:'tokens', tiles:[], tokenCount:det.tokens.length };
   }
@@ -761,12 +780,62 @@ function analyzeImage(img) {
     var p = latticeToPoint(lat, tiles[i].a, tiles[i].b);
     tiles[i].gx = p.x; tiles[i].gy = p.y;
   }
-  classifyTiles(img, tiles, lat.d, det.mask, det.tokenRadius);
+  /* إن كان نصف القطر المكتشف بحجم البلاطة نفسها، فنحن التقطنا البلاطات لا أقراص الأرقام.
+     المواضع تبقى صحيحة، لكن لا يجوز اعتبار أي بلاطة «تحمل رقماً قديماً». */
+  var tokenLike = (det.tokenRadius || 0) / lat.d;
+  var hexMode = tokenLike > 0.38;
+  var tokR = hexMode ? lat.d * 0.24 : det.tokenRadius;
+  if (hexMode) {
+    for (i = 0; i < tiles.length; i++) { tiles[i].hasToken = false; tiles[i].tokenR = null; }
+  }
+  classifyTiles(img, tiles, lat.d, det.mask, tokR);
   tiles.sort(function (p, q) { return (p.y - q.y) || (p.x - q.x); });
-  return { ok:true, tiles:tiles, lattice:lat, d:lat.d, mask:det.mask,
-           tokenRadius:det.tokenRadius, tokenCount:det.tokens.length, added:added.length };
+  if (tiles.length < 4) return { ok:false, reason:'fewtiles', tiles:tiles };
+  return { ok:true, tiles:tiles, lattice:lat, d:lat.d, mask:det.mask, hexMode:hexMode,
+           tokenRadius:tokR, tokenCount:det.tokens.length, added:added.length };
 }
 /* ==== CORE PART 2 END ==== */
+
+/* عتبة سطوع نسبية: تتكيّف مع الصور المعتمة أو الساطعة جداً */
+function brightPercentile(img, frac) {
+  var d = img.data, n = img.width * img.height, hist = new Uint32Array(101), cnt = 0;
+  var step = Math.max(1, Math.floor(n / 60000));
+  for (var i = 0; i < n; i += step) {
+    var q = i * 4;
+    if (d[q+3] < 24) continue;
+    var mx = Math.max(d[q], d[q+1], d[q+2]) / 255;
+    hist[Math.round(mx * 100)]++; cnt++;
+  }
+  if (!cnt) return 0.6;
+  var target = cnt * frac, acc = 0;
+  for (var k = 0; k <= 100; k++) { acc += hist[k]; if (acc >= target) return k / 100; }
+  return 1;
+}
+/* يجرّب كل العتبات ويختار أفضل نتيجة (أكثر بلاطات، ثم أقل خطأ ملاءمة) */
+function analyzeBest(img) {
+  var best = null, i;
+  var p78 = brightPercentile(img, 0.78), p88 = brightPercentile(img, 0.88);
+  var presets = MASK_PRESETS.concat([
+    [Math.max(0.10, p78 - 0.03), 0.55],
+    [Math.max(0.10, p88 - 0.03), 0.45],
+    [Math.max(0.10, p78 - 0.03), 0.72]
+  ]);
+  for (i = 0; i < presets.length; i++) {
+    var r;
+    try { r = analyzeImage(img, presets[i][0], presets[i][1]); }
+    catch (e) { continue; }
+    if (!r || !r.ok) continue;
+    r.preset = presets[i];
+    if (!best) { best = r; continue; }
+    /* الأفضلية: عدد بلاطات أكبر، ثم كشف أقراص حقيقي، ثم أقل خطأ ملاءمة */
+    if (r.tiles.length !== best.tiles.length) {
+      if (r.tiles.length > best.tiles.length) best = r;
+    } else if (!!r.hexMode !== !!best.hexMode) {
+      if (!r.hexMode) best = r;
+    } else if (r.lattice.error < best.lattice.error) best = r;
+  }
+  return best || { ok:false, reason:'tokens', tiles:[] };
+}
 
 /* ---------- محرك توزيع الأرقام ---------- */
 function buildAdjacency(tiles) {
@@ -973,7 +1042,8 @@ return {
   detectTokens:detectTokens, fitLattice:fitLattice, buildTokenMask:buildTokenMask,
   latticeToPoint:latticeToPoint, pointToLattice:pointToLattice,
   sampleColor:sampleColor, completeBoard:completeBoard, classifyTiles:classifyTiles,
-  analyzeImage:analyzeImage, buildAdjacency:buildAdjacency, tierSlots:tierSlots,
+  analyzeImage:analyzeImage, analyzeBest:analyzeBest, MASK_PRESETS:MASK_PRESETS,
+  buildAdjacency:buildAdjacency, tierSlots:tierSlots,
   assignNumbers:assignNumbers, checkRules:checkRules
 };
 })();
@@ -982,109 +1052,91 @@ if (typeof module !== 'undefined' && module.exports) module.exports = CORE;
 </script>
 
 <script>
-/* ================== واجهة الاستخدام ================== */
 (function () {
 'use strict';
 var $ = function (id) { return document.getElementById(id); };
-var AR_DIGITS = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+var AR = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
 function ar(n) { return String(n).split('').map(function (c) {
-  return /[0-9]/.test(c) ? AR_DIGITS[+c] : c; }).join(''); }
+  return /[0-9]/.test(c) ? AR[+c] : c; }).join(''); }
 
-var S = {
-  img:null, origW:0, origH:0,
-  work:null, mask:null,
-  tiles:[], d:0, tokenR:0, theta:0,
-  result:null, assign:null,
-  mode:'edit', selTerrain:'wood', showOverlay:true,
-  viewScale:1, selected:-1, dragging:-1, seed:1
-};
+var S = { img:null, origW:0, origH:0, work:null, mask:null,
+          tiles:[], d:0, tokenR:0, theta:0, result:null, assign:null,
+          mode:'fix', sel:-1, drag:-1, pick:'wood', showNames:true,
+          seed:1, viewScale:1 };
 
-/* ---------- لوحة اختيار التضاريس ---------- */
-(function buildPalette() {
-  var box = $('terrPalette'), html = '';
+function note(kind, html) {
+  var n = $('status');
+  n.className = 'note' + (kind ? ' ' + kind : '');
+  n.innerHTML = html;
+}
+
+/* ---------- شرائح التضاريس ---------- */
+(function () {
+  var box = $('chips'), html = '';
   CORE.TERRAINS.forEach(function (t) {
-    html += '<div class="t' + (t.id === S.selTerrain ? ' on' : '') + '" data-t="' + t.id + '">' +
-            '<i style="background:' + t.css + '"></i>' + t.name + '</div>';
+    html += '<button type="button" class="chip' + (t.id === S.pick ? ' on' : '') +
+            '" id="chip-' + t.id + '" data-t="' + t.id + '">' +
+            '<i style="background:' + t.css + '"></i>' + t.name + '</button>';
   });
   box.innerHTML = html;
   box.addEventListener('click', function (e) {
-    var el = e.target.closest('.t'); if (!el) return;
-    S.selTerrain = el.getAttribute('data-t');
+    var el = e.target.closest('.chip'); if (!el) return;
+    S.pick = el.getAttribute('data-t');
     Array.prototype.forEach.call(box.children, function (c) { c.classList.remove('on'); });
     el.classList.add('on');
+    if (S.sel >= 0 && S.tiles[S.sel]) {
+      S.tiles[S.sel].terrain = S.pick;
+      S.sel = -1;
+      invalidate();
+    }
   });
 })();
 
-/* ---------- الأدوات ---------- */
-var HINTS = {
-  edit:'اضغط على أي بلاطة لتغيير نوع تضاريسها إلى النوع المحدد بالأعلى.',
-  add:'اضغط على أي مكان فارغ في الخريطة لإضافة بلاطة جديدة بالنوع المحدد بالأعلى.',
-  del:'اضغط على أي بلاطة لحذفها من الخريطة.',
-  move:'اسحب أي بلاطة بالماوس لتصحيح موضعها.'
-};
-Array.prototype.forEach.call(document.querySelectorAll('.tool[data-mode]'), function (el) {
-  el.addEventListener('click', function () {
-    document.querySelectorAll('.tool[data-mode]').forEach(function (x) { x.classList.remove('on'); });
-    el.classList.add('on');
-    S.mode = el.getAttribute('data-mode');
-    $('modeHint').textContent = HINTS[S.mode];
-  });
-});
-$('toggleOverlay').addEventListener('click', function () {
-  S.showOverlay = !S.showOverlay; render();
-});
-
 /* ---------- رفع الصورة ---------- */
-var drop = $('drop'), fileInput = $('file');
-drop.addEventListener('click', function () { fileInput.click(); });
-drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
-drop.addEventListener('dragleave', function () { drop.classList.remove('over'); });
-drop.addEventListener('drop', function (e) {
-  e.preventDefault(); drop.classList.remove('over');
-  if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-});
-fileInput.addEventListener('change', function () {
-  if (fileInput.files && fileInput.files[0]) handleFile(fileInput.files[0]);
+$('b1').addEventListener('click', function () { $('file').click(); });
+$('file').addEventListener('change', function () {
+  if (this.files && this.files[0]) loadFile(this.files[0]);
 });
 window.addEventListener('paste', function (e) {
   var items = (e.clipboardData || {}).items || [];
   for (var i = 0; i < items.length; i++) {
-    if (items[i].type.indexOf('image') === 0) { handleFile(items[i].getAsFile()); break; }
+    if (items[i].type.indexOf('image') === 0) { loadFile(items[i].getAsFile()); break; }
   }
 });
+['dragover','drop'].forEach(function (ev) {
+  window.addEventListener(ev, function (e) {
+    e.preventDefault();
+    if (ev === 'drop' && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      loadFile(e.dataTransfer.files[0]);
+    }
+  });
+});
 
-function msg(box, kind, text) { $(box).innerHTML = '<div class="msg ' + kind + '">' + text + '</div>'; }
-
-function handleFile(file) {
+function loadFile(file) {
   if (!file || file.type.indexOf('image') !== 0) {
-    msg('loadMsg', 'err', 'هذا الملف ليس صورة. الرجاء اختيار صورة PNG أو JPG.');
+    note('err', 'هذا الملف ليس صورة. اختر صورة PNG أو JPG.');
     return;
   }
-  var url = URL.createObjectURL(file);
-  var im = new Image();
+  var url = URL.createObjectURL(file), im = new Image();
   im.onload = function () {
     URL.revokeObjectURL(url);
     S.img = im; S.origW = im.naturalWidth; S.origH = im.naturalHeight;
-    msg('loadMsg', 'ok', 'تم تحميل الصورة بنجاح — المقاس ' + ar(S.origW) + ' × ' + ar(S.origH) + ' بكسل.');
-    $('boardCard').style.display = ''; $('countCard').style.display = '';
-    $('optCard').style.display = '';
+    S.result = null; S.assign = null; S.sel = -1;
     prepareWork();
-    runDetect();
+    detect();
   };
-  im.onerror = function () { msg('loadMsg', 'err', 'تعذّر فتح الصورة. جرّب صيغة أخرى (PNG أو JPG).'); };
+  im.onerror = function () { note('err', 'تعذّر فتح الصورة. جرّب صيغة أخرى.'); };
   im.src = url;
 }
-
 function prepareWork() {
-  var maxDim = 1100;
-  var sc = Math.min(1, maxDim / Math.max(S.origW, S.origH));
+  var sc = Math.min(1, 1100 / Math.max(S.origW, S.origH));
   var c = document.createElement('canvas');
   c.width = Math.max(1, Math.round(S.origW * sc));
   c.height = Math.max(1, Math.round(S.origH * sc));
   var g = c.getContext('2d', { willReadFrequently: true });
   g.drawImage(S.img, 0, 0, c.width, c.height);
   var id = g.getImageData(0, 0, c.width, c.height);
-  S.work = { width: id.width, height: id.height, data: id.data, scale: c.width / S.origW };
+  S.work = { width:id.width, height:id.height, data:id.data, scale:c.width / S.origW };
   S.mask = null;
 }
 function workMask() {
@@ -1092,65 +1144,58 @@ function workMask() {
   return S.mask;
 }
 
-/* ---------- تشغيل الكشف التلقائي ---------- */
-function runDetect() {
-  $('boardCard').classList.add('busy');
+/* ---------- الكشف التلقائي ---------- */
+function detect() {
+  $('b1').classList.add('busy');
+  note('', '⏳ جارٍ قراءة الخريطة...');
   setTimeout(function () {
     var res;
-    try { res = CORE.analyzeImage(S.work); }
-    catch (err) { res = { ok:false, reason:'error', message:String(err) }; }
-    $('boardCard').classList.remove('busy');
+    try { res = CORE.analyzeBest(S.work); }
+    catch (err) { res = { ok:false, reason:'error' }; }
+    $('b1').classList.remove('busy');
     var sc = S.work.scale;
-    if (!res.ok) {
-      S.tiles = []; S.assign = null; S.result = null;
-      var why = res.reason === 'tokens'
-        ? 'لم أتمكن من العثور على أقراص الأرقام الفاتحة في الصورة.'
-        : (res.reason === 'lattice'
-            ? 'عثرتُ على أقراص لكنها لا تُكوّن شبكة سداسية منتظمة.'
-            : 'حدث خطأ أثناء التحليل.');
-      msg('detectMsg', 'warn', '<b>تعذّر الكشف التلقائي.</b> ' + why +
-        '<br>استخدم زر <b>«⚙️ إنشاء شبكة يدوية»</b> بالأسفل، أو أضف البلاطات يدوياً بأداة «➕ إضافة بلاطة».');
-      buildManualPanel(true);
-    } else {
+    $('stage').hidden = false;
+    if (res.ok && res.tiles.length >= 5) {
       S.mask = res.mask;
       S.theta = Math.atan2(res.lattice.V1.y, res.lattice.V1.x);
       S.d = res.d / sc;
       S.tokenR = (res.tokenRadius || res.d * 0.24) / sc;
       S.tiles = res.tiles.map(function (t) {
-        return { x: t.x / sc, y: t.y / sc, terrain: t.terrain,
-                 hasToken: !!t.hasToken, tokenR: (t.tokenR || res.tokenRadius) / sc };
+        return { x:t.x / sc, y:t.y / sc, terrain:t.terrain,
+                 hasToken:!!t.hasToken, tokenR:(t.tokenR || res.tokenRadius) / sc };
       });
-      S.assign = null; S.result = null; S.selected = -1;
-      msg('detectMsg', 'ok', '<b>تم الكشف بنجاح.</b> عدد البلاطات: <b>' + ar(S.tiles.length) +
-        '</b> — منها <b>' + ar(res.added) + '</b> بلا أرقام قديمة (الصحراء غالباً).' +
-        '<br>⚠️ <b>راجع التضاريس في الصورة</b> وصحّح أي خطأ قبل التوزيع.');
+      S.result = null; S.assign = null; S.sel = -1;
+      note('ok', '✅ قرأتُ <b>' + ar(S.tiles.length) + '</b> بلاطة. ' +
+        'راجع الأسماء المكتوبة على الصورة — إن كان نوع بلاطة غلط اضغط عليها وصححه، ثم اضغط الزر الأخضر.');
+    } else {
+      S.tiles = []; S.result = null; S.assign = null;
+      note('warn', '⚠️ لم أستطع قراءة الخريطة تلقائياً من هذه الصورة.<br>' +
+        'افتح <b>«⚙️ إعدادات متقدمة»</b> بالأسفل ثم اضغط <b>«⚙️ شبكة يدوية»</b> ' +
+        'واضبط الحجم والموضع حتى تنطبق الشبكة على الخريطة.');
+      $('adv').open = true;
+      showManual();
     }
-    $('ruleCard').style.display = 'none';
-    $('dlCard').style.display = 'none';
-    render(); renderCounts();
+    invalidate();
   }, 30);
 }
-$('btnRedetect').addEventListener('click', function () { if (S.work) runDetect(); });
-$('btnClear').addEventListener('click', function () {
-  S.tiles = []; S.assign = null; S.result = null; S.selected = -1;
-  $('ruleCard').style.display = 'none'; $('dlCard').style.display = 'none';
-  render(); renderCounts();
-});
 
-/* ---------- الرسم على اللوحة ---------- */
+/* ---------- الرسم ---------- */
 var view = $('view'), vctx = view.getContext('2d');
-
-function hexTheta() { return S.theta || 0; }
-function hexPath(g, x, y, R, theta) {
+function hexPath(g, x, y, R, th) {
   g.beginPath();
   for (var k = 0; k < 6; k++) {
-    var a = theta + Math.PI / 6 + k * Math.PI / 3;
+    var a = th + Math.PI/6 + k * Math.PI/3;
     var px = x + R * Math.cos(a), py = y + R * Math.sin(a);
     if (k === 0) g.moveTo(px, py); else g.lineTo(px, py);
   }
   g.closePath();
 }
-function drawOneToken(g, x, y, r, num, digits) {
+function tokenRadius() {
+  var base = (S.tokenR || (S.d * 0.24) || 18) * 1.3;
+  if (S.d) base = Math.min(base, S.d * 0.40);
+  return base * (+$('tokenSize').value) / 100;
+}
+function drawToken(g, x, y, r, num, digits) {
   var pips = CORE.pipsOf(num), hot = pips === 5;
   g.save();
   g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2);
@@ -1160,84 +1205,74 @@ function drawOneToken(g, x, y, r, num, digits) {
   g.lineWidth = Math.max(1, r * 0.085); g.strokeStyle = '#6E5B38'; g.stroke();
   g.beginPath(); g.arc(x, y, r * 0.84, 0, Math.PI * 2);
   g.lineWidth = Math.max(1, r * 0.05); g.strokeStyle = '#C9B183'; g.stroke();
-  var txt = digits === 'arabic' ? ar(num) : String(num);
   g.fillStyle = hot ? '#B3291E' : '#23201B';
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.font = '900 ' + (r * 1.02) + 'px "Arial Black","Segoe UI",Tahoma,sans-serif';
-  g.fillText(txt, x, y - r * 0.13);
-  var dotR = Math.max(0.7, r * 0.06), gap = r * 0.17;
-  var sx = x - gap * (pips - 1) / 2;
+  g.fillText(digits === 'arabic' ? ar(num) : String(num), x, y - r * 0.13);
+  var dr = Math.max(0.7, r * 0.06), gap = r * 0.17, sx = x - gap * (pips - 1) / 2;
   for (var i = 0; i < pips; i++) {
-    g.beginPath(); g.arc(sx + i * gap, y + r * 0.56, dotR, 0, Math.PI * 2);
+    g.beginPath(); g.arc(sx + i * gap, y + r * 0.56, dr, 0, Math.PI * 2);
     g.fillStyle = hot ? '#B3291E' : '#23201B'; g.fill();
   }
   g.restore();
 }
-function tokenRadius() {
-  var base = S.tokenR || (S.d * 0.24) || 18;
-  base = base * 1.3;                       /* هامش أمان لتغطية القرص القديم بالكامل */
-  if (S.d) base = Math.min(base, S.d * 0.40);   /* ألا يلامس البلاطات المجاورة */
-  var pct = (+$('tokenSize').value) / 100;
-  return base * pct;
-}
-function drawTokens(g, sc) {
-  if (!S.assign) return;
-  var R = tokenRadius() * sc, digits = $('digits').value;
-  for (var i = 0; i < S.tiles.length; i++) {
-    if (S.assign[i] == null) continue;
-    drawOneToken(g, S.tiles[i].x * sc, S.tiles[i].y * sc, R, S.assign[i], digits);
-  }
-}
-function drawOverlay(g, sc) {
-  var R = (S.d ? S.d / Math.sqrt(3) : 40) * sc, theta = hexTheta();
-  for (var i = 0; i < S.tiles.length; i++) {
-    var t = S.tiles[i], T = CORE.terrainById(t.terrain) || CORE.TERRAINS[0];
-    var x = t.x * sc, y = t.y * sc;
-    hexPath(g, x, y, R * 0.94, theta);
-    g.fillStyle = T.css + '55';
-    g.fill();
-    g.lineWidth = Math.max(2, R * 0.07);
-    g.strokeStyle = (i === S.selected) ? '#ffcf5c' : T.css;
-    g.stroke();
-    var fs = Math.max(10, R * 0.3);
-    g.font = '700 ' + fs + 'px "Segoe UI",Tahoma,sans-serif';
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineWidth = Math.max(2, fs * 0.28); g.strokeStyle = 'rgba(0,0,0,0.85)';
-    g.strokeText(T.name, x, y + R * 0.62);
-    g.fillStyle = '#ffffff';
-    g.fillText(T.name, x, y + R * 0.62);
-  }
-}
 function render() {
   if (!S.img) return;
-  var maxW = 1400;
-  var sc = Math.min(1, maxW / S.origW);
+  var sc = Math.min(1, 1400 / S.origW);
   S.viewScale = sc;
   view.width = Math.max(1, Math.round(S.origW * sc));
   view.height = Math.max(1, Math.round(S.origH * sc));
   vctx.clearRect(0, 0, view.width, view.height);
   vctx.drawImage(S.img, 0, 0, view.width, view.height);
-  drawTokens(vctx, sc);
-  if (S.showOverlay) drawOverlay(vctx, sc);
+  if (S.assign) {
+    var R = tokenRadius() * sc, dg = $('digits').value;
+    for (var i = 0; i < S.tiles.length; i++) {
+      if (S.assign[i] == null) continue;
+      drawToken(vctx, S.tiles[i].x * sc, S.tiles[i].y * sc, R, S.assign[i], dg);
+    }
+  }
+  if (!S.showNames) return;
+  var HR = (S.d ? S.d / Math.sqrt(3) : 40) * sc;
+  for (var j = 0; j < S.tiles.length; j++) {
+    var t = S.tiles[j], T = CORE.terrainById(t.terrain) || CORE.TERRAINS[0];
+    var x = t.x * sc, y = t.y * sc, isSel = (j === S.sel);
+    hexPath(vctx, x, y, HR * 0.94, S.theta);
+    vctx.fillStyle = T.css + (isSel ? '88' : '4D');
+    vctx.fill();
+    vctx.lineWidth = Math.max(2, HR * (isSel ? 0.13 : 0.07));
+    vctx.strokeStyle = isSel ? '#E9A700' : T.css;
+    vctx.stroke();
+    var fs = Math.max(11, HR * 0.3);
+    vctx.font = '700 ' + fs + 'px "Segoe UI",Tahoma,sans-serif';
+    vctx.textAlign = 'center'; vctx.textBaseline = 'middle';
+    vctx.lineWidth = Math.max(2, fs * 0.3); vctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    vctx.strokeText(T.name, x, y + HR * 0.62);
+    vctx.fillStyle = '#ffffff';
+    vctx.fillText(T.name, x, y + HR * 0.62);
+  }
 }
 function renderFull() {
   var c = document.createElement('canvas');
   c.width = S.origW; c.height = S.origH;
   var g = c.getContext('2d');
   g.drawImage(S.img, 0, 0);
-  drawTokens(g, 1);
+  if (S.assign) {
+    var R = tokenRadius(), dg = $('digits').value;
+    for (var i = 0; i < S.tiles.length; i++) {
+      if (S.assign[i] == null) continue;
+      drawToken(g, S.tiles[i].x, S.tiles[i].y, R, S.assign[i], dg);
+    }
+  }
   return c;
 }
 
-/* ---------- التفاعل مع اللوحة ---------- */
-function evtPos(e) {
+/* ---------- التفاعل ---------- */
+function pos(e) {
   var r = view.getBoundingClientRect();
-  var cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-  var cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
-  return { x: cx * (view.width / r.width) / S.viewScale,
-           y: cy * (view.height / r.height) / S.viewScale };
+  return { x:(e.clientX - r.left) * (view.width / r.width) / S.viewScale,
+           y:(e.clientY - r.top) * (view.height / r.height) / S.viewScale };
 }
-function hitTile(p) {
+function hit(p) {
   var best = -1, bd = (S.d || 60) * 0.58;
   for (var i = 0; i < S.tiles.length; i++) {
     var d = Math.hypot(S.tiles[i].x - p.x, S.tiles[i].y - p.y);
@@ -1245,177 +1280,94 @@ function hitTile(p) {
   }
   return best;
 }
-function classifyTerrainAt(x, y) {
-  var sc = S.work.scale, d = (S.d || 60) * sc;
-  var c = CORE.sampleColor(S.work, x * sc, y * sc, d * 0.27, d * 0.44, workMask());
-  if (!c) c = CORE.sampleColor(S.work, x * sc, y * sc, 0, d * 0.44, null);
-  if (!c) return S.selTerrain;
-  var lab = CORE.rgb2lab(c.r, c.g, c.b), bt = 0, bv = 1e9;
-  for (var t = 0; t < CORE.TERRAINS.length; t++) {
-    var v = CORE.terrainDistance(lab, t);
-    if (v < bv) { bv = v; bt = t; }
-  }
-  return CORE.TERRAINS[bt].id;
-}
 view.addEventListener('mousedown', function (e) {
-  if (!S.img) return;
-  var p = evtPos(e), i = hitTile(p);
-  if (S.mode === 'move' && i >= 0) { S.dragging = i; S.selected = i; render(); e.preventDefault(); }
+  if (S.mode !== 'move' || !S.img) return;
+  var i = hit(pos(e));
+  if (i >= 0) { S.drag = i; S.sel = i; render(); e.preventDefault(); }
 });
 window.addEventListener('mousemove', function (e) {
-  if (S.dragging < 0) return;
-  var p = evtPos(e);
-  S.tiles[S.dragging].x = p.x; S.tiles[S.dragging].y = p.y;
+  if (S.drag < 0) return;
+  var p = pos(e);
+  S.tiles[S.drag].x = p.x; S.tiles[S.drag].y = p.y;
   render();
 });
 window.addEventListener('mouseup', function () {
-  if (S.dragging >= 0) { S.dragging = -1; afterEdit(); }
+  if (S.drag >= 0) { S.drag = -1; invalidate(); }
 });
 view.addEventListener('click', function (e) {
   if (!S.img) return;
-  var p = evtPos(e), i = hitTile(p);
-  if (S.mode === 'edit') {
-    if (i < 0) return;
-    S.tiles[i].terrain = S.selTerrain; S.selected = i; afterEdit();
+  var p = pos(e), i = hit(p);
+  if (S.mode === 'fix') {
+    S.sel = (i >= 0 && i !== S.sel) ? i : -1;
+    if (S.sel >= 0) {
+      var T = CORE.terrainById(S.tiles[S.sel].terrain);
+      $('fixhint').innerHTML = 'البلاطة المحددة نوعها الآن <b>' + T.name +
+        '</b> — اختر النوع الصحيح من الأسفل 👇';
+      $('fixhint').className = 'note warn';
+    } else resetHint();
+    render();
   } else if (S.mode === 'del') {
     if (i < 0) return;
-    S.tiles.splice(i, 1); S.selected = -1; afterEdit();
+    S.tiles.splice(i, 1); S.sel = -1; invalidate();
   } else if (S.mode === 'add') {
     if (i >= 0) return;
     if (!S.d) S.d = Math.min(S.origW, S.origH) / 5;
-    S.tiles.push({ x:p.x, y:p.y, terrain:S.selTerrain, hasToken:false,
+    S.tiles.push({ x:p.x, y:p.y, terrain:S.pick, hasToken:false,
                    tokenR:S.tokenR || S.d * 0.24 });
-    S.selected = S.tiles.length - 1; afterEdit();
+    invalidate();
   }
 });
-function afterEdit() {
-  if (S.assign) {
-    S.assign = null; S.result = null;
-    $('ruleCard').style.display = 'none'; $('dlCard').style.display = 'none';
-  }
-  render(); renderCounts();
+function resetHint() {
+  $('fixhint').innerHTML = 'لو نوع أي بلاطة غلط: <b>اضغط عليها</b> ثم اختر النوع الصحيح من الأسفل.';
+  $('fixhint').className = 'note';
+}
+function invalidate() {
+  S.result = null; S.assign = null;
+  $('ruleWrap').hidden = true;
+  resetHint();
+  render(); refresh();
 }
 
-/* ---------- الشبكة اليدوية ---------- */
-function buildManualPanel(show) {
-  var host = $('manualPanel');
-  if (!host) {
-    host = document.createElement('div');
-    host.id = 'manualPanel';
-    host.style.cssText = 'display:none;background:#0f2542;border:1px solid #26507f;' +
-                         'border-radius:10px;padding:10px 14px;margin:8px 0';
-    host.innerHTML =
-      '<b style="color:#ffcf5c">⚙️ إنشاء شبكة يدوية</b>' +
-      '<div class="hint">اكتب عدد البلاطات في كل صف مفصولة بفاصلة، ثم اضبط الحجم والموضع حتى تنطبق الشبكة على الخريطة.</div>' +
-      '<label class="field">نمط الصفوف (من الأعلى للأسفل)</label>' +
-      '<input type="text" id="mRows" value="3,4,5,4,3">' +
-      '<label class="field">حجم البلاطة: <b id="mSizeV">١٠٠٪</b></label>' +
-      '<input type="range" id="mSize" min="40" max="200" value="100">' +
-      '<label class="field">الإزاحة الأفقية: <b id="mXV">٠</b></label>' +
-      '<input type="range" id="mX" min="-40" max="40" value="0">' +
-      '<label class="field">الإزاحة الرأسية: <b id="mYV">٠</b></label>' +
-      '<input type="range" id="mY" min="-40" max="40" value="0">' +
-      '<label class="field">الدوران: <b id="mRV">٠°</b></label>' +
-      '<input type="range" id="mR" min="-45" max="45" value="0">' +
-      '<div class="btnrow"><button class="primary" id="mApply">✅ تطبيق الشبكة وتحديد التضاريس</button>' +
-      '<button id="mClose">إخفاء</button></div>';
-    var box = document.querySelector('#boardCard .canvasBox');
-    box.parentNode.insertBefore(host, box);
-    ['mSize', 'mX', 'mY', 'mR'].forEach(function (id) {
-      $(id).addEventListener('input', function () { genManual(); });
-    });
-    $('mRows').addEventListener('change', function () { genManual(); });
-    $('mApply').addEventListener('click', function () { genManual(); });
-    $('mClose').addEventListener('click', function () { host.style.display = 'none'; });
-  }
-  if (show) host.style.display = '';
-  return host;
-}
-function genManual() {
-  if (!S.img) return;
-  var rows = ($('mRows').value || '').split(/[^0-9]+/)
-              .map(function (x) { return parseInt(x, 10); })
-              .filter(function (x) { return x > 0 && x < 40; });
-  if (!rows.length) rows = [3, 4, 5, 4, 3];
-  var size = +$('mSize').value, offX = +$('mX').value, offY = +$('mY').value, rot = +$('mR').value;
-  $('mSizeV').textContent = ar(size) + '٪';
-  $('mXV').textContent = ar(offX); $('mYV').textContent = ar(offY);
-  $('mRV').textContent = ar(rot) + '°';
-  var maxc = Math.max.apply(null, rows);
-  var hFac = ((rows.length - 1) * 1.5 + 2) / Math.sqrt(3);
-  var dAuto = Math.min(S.origW * 0.94 / maxc, S.origH * 0.94 / hFac);
-  var d = dAuto * size / 100, R = d / Math.sqrt(3);
-  var th = rot * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th);
-  var cx = S.origW / 2 + offX / 100 * S.origW;
-  var cy = S.origH / 2 + offY / 100 * S.origH;
-  var tiles = [];
-  rows.forEach(function (cnt, r) {
-    for (var i = 0; i < cnt; i++) {
-      var bx = (i - (cnt - 1) / 2) * d;
-      var by = (r - (rows.length - 1) / 2) * 1.5 * R;
-      tiles.push({ x: cx + bx * cs - by * sn, y: cy + bx * sn + by * cs,
-                   hasToken: false, tokenR: d * 0.24 });
-    }
-  });
-  S.d = d; S.theta = th;
-  if (!S.tokenR) S.tokenR = d * 0.24;
-  for (var k = 0; k < tiles.length; k++) tiles[k].terrain = classifyTerrainAt(tiles[k].x, tiles[k].y);
-  S.tiles = tiles; S.selected = -1;
-  afterEdit();
-}
-$('btnManual').addEventListener('click', function () {
-  if (!S.img) return;
-  buildManualPanel(true);
-  genManual();
-});
-
-/* ---------- جدول الإحصاء ---------- */
-function renderCounts() {
-  var counts = {}, i;
-  for (i = 0; i < S.tiles.length; i++) {
-    var t = S.tiles[i].terrain || 'desert';
-    counts[t] = (counts[t] || 0) + 1;
-  }
-  var html = '<tr><th>التضاريس</th><th>العدد</th><th>الأرقام الموزّعة</th></tr>';
+/* ---------- الحالة والأزرار ---------- */
+function refresh() {
+  var has = S.tiles.length > 0, done = !!S.assign;
+  $('b2').disabled = !has;
+  $('b3').disabled = !done;
+  $('bShuffle').disabled = !done;
+  $('b1').classList.toggle('on', !has);
+  $('b2').classList.toggle('on', has && !done);
+  $('b3').classList.toggle('on', done);
+  var counts = {};
+  S.tiles.forEach(function (t) { counts[t.terrain] = (counts[t.terrain] || 0) + 1; });
+  var html = '';
   CORE.TERRAINS.forEach(function (T) {
     var n = counts[T.id] || 0;
-    var nums = '—';
-    if (S.result && S.result.numbersOf[T.id]) {
-      nums = S.result.numbersOf[T.id].slice().sort(function (a, b) { return a - b; })
-        .map(function (x) { return '<span class="num' + (CORE.pipsOf(x) === 5 ? ' hot' : '') + '">' + x + '</span>'; })
-        .join('');
-    } else if (T.id === 'desert' && n) nums = 'بدون أرقام';
-    html += '<tr><td class="name"><span style="display:inline-block;width:12px;height:12px;' +
-            'border-radius:3px;background:' + T.css + ';margin-left:6px"></span>' + T.name +
-            '</td><td>' + ar(n) + '</td><td>' + nums + '</td></tr>';
+    if (!n) return;
+    html += '<span class="cnt"><i style="background:' + T.css + '"></i>' +
+            T.name + ' <b>' + ar(n) + '</b></span>';
   });
-  html += '<tr><td class="name"><b>المجموع</b></td><td><b>' + ar(S.tiles.length) +
-          '</b></td><td></td></tr>';
-  $('countTable').innerHTML = html;
-
-  var warn = [];
-  CORE.TERRAINS.forEach(function (T) {
-    if (T.id === 'desert') return;
-    var n = counts[T.id] || 0;
-    if (n > 4) warn.push('«' + T.name + '» فيها ' + ar(n) + ' بلاطات. القوانين مبنية على ٤ بلاطات كحد أقصى، لذلك سيتكرر بعض الحظوظ.');
-  });
-  if (!S.tiles.length) warn.push('لا توجد بلاطات بعد.');
-  $('countMsg').innerHTML = warn.length
-    ? warn.map(function (w) { return '<div class="msg warn">⚠️ ' + w + '</div>'; }).join('')
-    : '<div class="msg ok">✅ أعداد التضاريس مناسبة للقوانين.</div>';
+  if (S.tiles.length) html += '<span class="cnt">المجموع <b>' + ar(S.tiles.length) + '</b></span>';
+  $('counts').innerHTML = html;
 }
 
-/* ---------- التوزيع والتحقق ---------- */
-function doAssign(newSeed) {
-  if (!S.tiles.length) { alert('لا توجد بلاطات. ارفع صورة أو أنشئ شبكة يدوية أولاً.'); return; }
-  S.seed = newSeed ? (Math.floor(Math.random() * 1e9) + 1) : S.seed;
-  S.result = CORE.assignNumbers(S.tiles, { dropMode: $('dropMode').value, seed: S.seed });
+/* ---------- التوزيع ---------- */
+function assign(fresh) {
+  if (!S.tiles.length) return;
+  if (fresh) S.seed = Math.floor(Math.random() * 1e9) + 1;
+  S.result = CORE.assignNumbers(S.tiles, { dropMode:$('dropMode').value, seed:S.seed });
   S.assign = S.result.assign;
-  renderRules(); renderCounts(); render();
-  $('ruleCard').style.display = ''; $('dlCard').style.display = '';
-}
-function renderRules() {
+  S.sel = -1;
   var chk = CORE.checkRules(S.result);
+  if (chk.issues.length) {
+    note('warn', '⚠️ وزّعتُ الأرقام، لكن هناك ملاحظة: ' + chk.issues[0] +
+      '<br>افتح الإعدادات المتقدمة لرؤية جدول التحقق كاملاً.');
+  } else {
+    note('ok', '✅ تم التوزيع بنجاح وكل القوانين محققة. اضغط الزر الأخضر لتنزيل الصورة.');
+  }
+  buildRuleTable(chk);
+  render(); refresh();
+}
+function buildRuleTable(chk) {
   var html = '<tr><th>التضاريس</th>';
   CORE.TIERS.forEach(function (T) {
     html += '<th>' + T.name + '<br><small>' + T.nums[0] + ' أو ' + T.nums[1] + '</small></th>';
@@ -1423,32 +1375,32 @@ function renderRules() {
   html += '</tr>';
   chk.rows.forEach(function (row) {
     var T = CORE.terrainById(row.terrain);
-    html += '<tr><td class="name"><span style="display:inline-block;width:12px;height:12px;' +
-            'border-radius:3px;background:' + T.css + ';margin-left:6px"></span>' + T.name + '</td>';
+    html += '<tr><td class="nm"><i style="display:inline-block;width:11px;height:11px;' +
+            'border-radius:3px;background:' + T.css + ';margin-left:5px"></i>' + T.name + '</td>';
     for (var t = 0; t < 4; t++) {
       var v = row.tiers[t];
-      html += '<td>' + (v.length
-        ? v.map(function (x) { return '<span class="num' + (CORE.pipsOf(x) === 5 ? ' hot' : '') + '">' + x + '</span>'; }).join('')
-        : '<span style="color:#6f8bab">—</span>') + '</td>';
+      html += '<td>' + (v.length ? v.map(function (x) {
+        return '<span class="num' + (CORE.pipsOf(x) === 5 ? ' hot' : '') + '">' + x + '</span>';
+      }).join('') : '—') + '</td>';
     }
     html += '</tr>';
   });
   $('ruleTable').innerHTML = html;
   var m = '';
-  chk.oks.forEach(function (o) { m += '<div class="msg ok">✅ ' + o + '</div>'; });
-  chk.issues.forEach(function (o) { m += '<div class="msg warn">⚠️ ' + o + '</div>'; });
-  if (!chk.issues.length) m += '<div class="msg info">🎲 تم تباعد الأرقام القوية (٦ و ٨) قدر الإمكان.</div>';
-  $('ruleMsgs').innerHTML = m;
+  chk.oks.forEach(function (o) { m += '<div class="note ok">✅ ' + o + '</div>'; });
+  chk.issues.forEach(function (o) { m += '<div class="note warn">⚠️ ' + o + '</div>'; });
+  $('ruleMsg').innerHTML = m;
+  $('ruleWrap').hidden = false;
 }
-$('btnAssign').addEventListener('click', function () { doAssign(false); });
-$('btnReshuffle').addEventListener('click', function () { doAssign(true); });
-$('tokenSize').addEventListener('input', function () {
-  $('szVal').textContent = ar($('tokenSize').value) + '٪'; render();
+$('b2').addEventListener('click', function () { assign(false); });
+$('bShuffle').addEventListener('click', function () { assign(true); });
+$('bEye').addEventListener('click', function () {
+  S.showNames = !S.showNames;
+  $('bEye').textContent = S.showNames ? '👁️ إخفاء الأسماء' : '👁️ إظهار الأسماء';
+  render();
 });
-$('digits').addEventListener('change', render);
-$('dropMode').addEventListener('change', function () { if (S.result) doAssign(false); });
 
-/* ---------- التحميل ---------- */
+/* ---------- التنزيل ---------- */
 function saveViaLink(blob, name) {
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1461,30 +1413,89 @@ function saveBlob(blob, name) {
   if (host && typeof host.use === 'function') {
     host.use('downloads').then(function (dl) {
       if (!dl) { saveViaLink(blob, name); return; }
-      dl.save({ filename: name, data: blob }).then(function () {
-        msg('dlMsg', 'ok', '✅ تم حفظ الصورة.');
+      dl.save({ filename:name, data:blob }).then(function () {
+        note('ok', '✅ تم حفظ الصورة.');
       }, function (err) {
-        if (err && err.code === 'declined') {
-          msg('dlMsg', 'info', 'أُلغي الحفظ. اضغط الزر مرة أخرى متى شئت.');
-        } else {
-          saveViaLink(blob, name);
-        }
+        if (err && err.code === 'declined') note('', 'أُلغي الحفظ. اضغط الزر مرة أخرى متى شئت.');
+        else saveViaLink(blob, name);
       });
     }, function () { saveViaLink(blob, name); });
     return;
   }
   saveViaLink(blob, name);
 }
-$('btnDownload').addEventListener('click', function () {
-  if (!S.img) return;
-  msg('dlMsg', 'info', '⏳ جارٍ تجهيز الصورة بدقتها الأصلية...');
-  var c = renderFull();
-  c.toBlob(function (blob) {
-    if (!blob) { msg('dlMsg', 'err', 'تعذّر تجهيز الصورة. جرّب مرة أخرى.'); return; }
+$('b3').addEventListener('click', function () {
+  if (!S.img || !S.assign) return;
+  note('', '⏳ جارٍ تجهيز الصورة بدقتها الأصلية...');
+  renderFull().toBlob(function (blob) {
+    if (!blob) { note('err', 'تعذّر تجهيز الصورة. جرّب مرة أخرى.'); return; }
     saveBlob(blob, 'catan-numbers.png');
   }, 'image/png');
 });
 
+/* ---------- الإعدادات المتقدمة ---------- */
+$('digits').addEventListener('change', render);
+$('tokenSize').addEventListener('input', function () {
+  $('szV').textContent = ar(this.value) + '٪'; render();
+});
+$('dropMode').addEventListener('change', function () { if (S.assign) assign(false); });
+[['mFix','fix'],['mAdd','add'],['mDel','del'],['mMove','move']].forEach(function (pair) {
+  $(pair[0]).addEventListener('click', function () {
+    S.mode = pair[1]; S.sel = -1;
+    var names = { fix:'اضغط على بلاطة لتصحيح نوعها.', add:'اضغط على مكان فارغ لإضافة بلاطة بالنوع المحدد.',
+                  del:'اضغط على بلاطة لحذفها.', move:'اسحب بلاطة لتصحيح موضعها.' };
+    $('fixhint').innerHTML = names[S.mode];
+    $('fixhint').className = 'note';
+    render();
+  });
+});
+$('bRedetect').addEventListener('click', function () { if (S.work) detect(); });
+$('bClear').addEventListener('click', function () {
+  S.tiles = []; S.sel = -1; invalidate();
+});
+$('bManual').addEventListener('click', function () { showManual(); genManual(); });
+function showManual() { $('manual').hidden = false; }
+['mSize','mX','mY','mR'].forEach(function (id) {
+  $(id).addEventListener('input', genManual);
+});
+$('mRows').addEventListener('change', genManual);
+function genManual() {
+  if (!S.img) return;
+  var rows = ($('mRows').value || '').split(/[^0-9]+/)
+    .map(function (x) { return parseInt(x, 10); })
+    .filter(function (x) { return x > 0 && x < 40; });
+  if (!rows.length) rows = [3,4,5,4,3];
+  var size = +$('mSize').value, oX = +$('mX').value, oY = +$('mY').value, rot = +$('mR').value;
+  $('mSizeV').textContent = ar(size) + '٪';
+  $('mXV').textContent = ar(oX); $('mYV').textContent = ar(oY);
+  $('mRV').textContent = ar(rot) + '°';
+  var maxc = Math.max.apply(null, rows);
+  var hFac = ((rows.length - 1) * 1.5 + 2) / Math.sqrt(3);
+  var dAuto = Math.min(S.origW * 0.94 / maxc, S.origH * 0.94 / hFac);
+  var d = dAuto * size / 100, R = d / Math.sqrt(3);
+  var th = rot * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th);
+  var cx = S.origW / 2 + oX / 100 * S.origW, cy = S.origH / 2 + oY / 100 * S.origH;
+  var tiles = [];
+  rows.forEach(function (cnt, r) {
+    for (var i = 0; i < cnt; i++) {
+      var bx = (i - (cnt - 1) / 2) * d, by = (r - (rows.length - 1) / 2) * 1.5 * R;
+      tiles.push({ x:cx + bx*cs - by*sn, y:cy + bx*sn + by*cs, hasToken:false, tokenR:d * 0.24 });
+    }
+  });
+  S.d = d; S.theta = th;
+  if (!S.tokenR) S.tokenR = d * 0.24;
+  var sc = S.work.scale;
+  var tmp = tiles.map(function (t) {
+    return { x:t.x * sc, y:t.y * sc, hasToken:false, tokenR:d * 0.24 * sc };
+  });
+  CORE.classifyTiles(S.work, tmp, d * sc, workMask(), d * 0.24 * sc);
+  tiles.forEach(function (t, i) { t.terrain = tmp[i].terrain || 'desert'; });
+  S.tiles = tiles; S.sel = -1;
+  $('stage').hidden = false;
+  invalidate();
+}
+
+refresh();
 })();
 </script>
 </body>
