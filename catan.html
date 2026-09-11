@@ -141,9 +141,9 @@ td.nm{text-align:right;font-weight:600;white-space:nowrap}
   <div class="canvasBox"><canvas id="view"></canvas></div>
   <div class="counts" id="counts"></div>
   <div class="fixrow" id="desertRow">
-    <span style="align-self:center;font-size:14px;color:var(--dim);font-weight:600">الصحراء في خريطتك:</span>
-    <button type="button" class="chip on" id="dYes">🏜️ فيها صحراء (تلقائي)</button>
-    <button type="button" class="chip" id="dNo">🚫 ما فيها صحراء</button>
+    <span style="align-self:center;font-size:14px;color:var(--dim);font-weight:600">بلاطة الصحراء:</span>
+    <button type="button" class="chip on" id="dBrick">🧱 اعتبرها طوباً (تأخذ رقماً)</button>
+    <button type="button" class="chip" id="dKeep">🏜️ اتركها صحراء بلا رقم</button>
   </div>
   <div class="note" id="fixhint">لو نوع أي بلاطة غلط: <b>اضغط عليها</b> ثم اختر النوع الصحيح من الأسفل.</div>
   <div class="fixrow" id="chips"></div>
@@ -1089,7 +1089,7 @@ function ar(n) { return String(n).split('').map(function (c) {
 var S = { img:null, origW:0, origH:0, work:null, mask:null,
           tiles:[], d:0, tokenR:0, theta:0, result:null, assign:null,
           mode:'fix', sel:-1, drag:-1, pick:'wood', showNames:true,
-          seed:1, viewScale:1, noDesert:false, lastFix:null };
+          seed:1, viewScale:1, desertAsBrick:true, lastFix:null };
 
 function note(kind, html) {
   var n = $('status');
@@ -1147,16 +1147,26 @@ $('bApply').addEventListener('click', function () {
   invalidate();
 });
 
-/* ---------- وجود الصحراء من عدمه ---------- */
-function setDesert(has) {
-  if (S.noDesert === !has) return;
-  S.noDesert = !has;
-  $('dNo').classList.toggle('on', S.noDesert);
-  $('dYes').classList.toggle('on', !S.noDesert);
+/* ---------- ماذا نفعل ببلاطة الصحراء ---------- */
+/* الصحراء تُكتشف دائماً بدقة (هي البلاطة بلا رقم قديم)، ثم نقرر:
+   إمّا أن نحوّلها إلى طوب فتأخذ رقماً، وإمّا أن نتركها بلا رقم. */
+function applyDesertRule(tiles) {
+  if (!S.desertAsBrick) return 0;
+  var n = 0;
+  for (var i = 0; i < tiles.length; i++) {
+    if (tiles[i].terrain === 'desert') { tiles[i].terrain = 'brick'; n++; }
+  }
+  return n;
+}
+function setDesertMode(asBrick) {
+  if (S.desertAsBrick === asBrick) return;
+  S.desertAsBrick = asBrick;
+  $('dBrick').classList.toggle('on', asBrick);
+  $('dKeep').classList.toggle('on', !asBrick);
   if (S.work) detect();
 }
-$('dNo').addEventListener('click', function () { setDesert(false); });
-$('dYes').addEventListener('click', function () { setDesert(true); });
+$('dBrick').addEventListener('click', function () { setDesertMode(true); });
+$('dKeep').addEventListener('click', function () { setDesertMode(false); });
 
 /* ---------- رفع الصورة ---------- */
 $('b1').addEventListener('click', function () { $('file').click(); });
@@ -1216,7 +1226,7 @@ function detect() {
   note('', '⏳ جارٍ قراءة الخريطة...');
   setTimeout(function () {
     var res;
-    try { res = CORE.analyzeBest(S.work, S.noDesert); }
+    try { res = CORE.analyzeBest(S.work); }
     catch (err) { res = { ok:false, reason:'error' }; }
     $('b1').classList.remove('busy');
     var sc = S.work.scale;
@@ -1231,10 +1241,9 @@ function detect() {
                  hasToken:!!t.hasToken, tokenR:(t.tokenR || res.tokenRadius) / sc };
       });
       S.result = null; S.assign = null; S.sel = -1;
-      var blank = 0;
-      for (var bi = 0; bi < S.tiles.length; bi++) if (!S.tiles[bi].hasToken) blank++;
-      var extra = (S.noDesert && blank)
-        ? '<br>🏜️ لاحظتُ <b>' + ar(blank) + '</b> بلاطة بلا رقم قديم. إن كانت صحراء فعلاً اضغط «فيها صحراء بدون رقم».'
+      var turned = applyDesertRule(S.tiles);
+      var extra = turned
+        ? '<br>🧱 حوّلتُ <b>' + ar(turned) + '</b> بلاطة صحراء إلى <b>طوب</b> فستأخذ رقماً — كما تلعبها.'
         : '';
       note('ok', '✅ قرأتُ <b>' + ar(S.tiles.length) + '</b> بلاطة. ' +
         'راجع الأسماء المكتوبة على الصورة — إن كان نوع بلاطة غلط اضغط عليها وصححه، ثم اضغط الزر الأخضر.' + extra);
@@ -1560,11 +1569,12 @@ function genManual() {
   var tmp = tiles.map(function (t) {
     return { x:t.x * sc, y:t.y * sc, hasToken:false, tokenR:d * 0.24 * sc };
   });
-  CORE.classifyTiles(S.work, tmp, d * sc, workMask(), d * 0.24 * sc, S.noDesert);
+  CORE.classifyTiles(S.work, tmp, d * sc, workMask(), d * 0.24 * sc);
   tiles.forEach(function (t, i) {
-    t.terrain = tmp[i].terrain || (S.noDesert ? 'brick' : 'desert');
+    t.terrain = tmp[i].terrain || 'desert';
     t.rgb = tmp[i].rgb;
   });
+  applyDesertRule(tiles);
   S.tiles = tiles; S.sel = -1;
   $('stage').hidden = false;
   invalidate();
