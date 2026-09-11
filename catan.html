@@ -197,6 +197,9 @@ td.nm{text-align:right;font-weight:600;white-space:nowrap}
     <input type="range" id="mR" min="-45" max="45" value="0">
   </div>
 
+  <label class="field">معلومات تقنية (صوّرها لي إن بقيت مشكلة)</label>
+  <div class="note" id="diag" style="font-family:monospace;font-size:12.5px;direction:ltr;text-align:left">—</div>
+
   <div id="ruleWrap" hidden>
     <label class="field">جدول التحقق من القوانين</label>
     <div id="ruleMsg"></div>
@@ -820,6 +823,201 @@ function analyzeImage(img, vMin, sMax, noDesert) {
 }
 /* ==== CORE PART 2 END ==== */
 
+/* ============================================================
+   الطريقة الثانية: تحديد اللوحة من البحر الأزرق واليابسة
+   لا تعتمد على أقراص الأرقام إطلاقاً، فتنجح حتى لو ذابت الأقراص
+   داخل إطارات البلاطات الرملية أو كانت الخريطة بلا أرقام.
+   ============================================================ */
+var ROW_PATTERNS = [
+  [3,4,5,4,3],          /* كاتان القياسية ١٩ */
+  [3,4,5,6,5,4,3],      /* التوسعة ٣٠ */
+  [4,5,6,5,4],          /* ٢٤ */
+  [2,3,4,3,2],          /* مصغّرة ١٤ */
+  [4,5,6,7,6,5,4]       /* كبيرة ٣٧ */
+];
+function patternSize(rows) {
+  var maxc = 0, i;
+  for (i = 0; i < rows.length; i++) maxc = Math.max(maxc, rows[i]);
+  /* بوحدات d (المسافة بين مركزين): العرض maxc، والارتفاع ((n-1)*1.5+2)/√3 */
+  return { w: maxc, h: ((rows.length - 1) * 1.5 + 2) / Math.sqrt(3) };
+}
+function gridCenters(rows, cx, cy, d) {
+  var R = d / Math.sqrt(3), out = [], r, i;
+  for (r = 0; r < rows.length; r++) {
+    for (i = 0; i < rows[r]; i++) {
+      out.push({ x: cx + (i - (rows[r] - 1) / 2) * d,
+                 y: cy + (r - (rows.length - 1) / 2) * 1.5 * R,
+                 a: i, b: r });
+    }
+  }
+  return out;
+}
+function largestComponent(mask, W, H) {
+  var seen = new Uint8Array(W * H), stack = new Int32Array(W * H);
+  var best = null;
+  for (var start = 0; start < W * H; start++) {
+    if (!mask[start] || seen[start]) continue;
+    var sp = 0; stack[sp++] = start; seen[start] = 1;
+    var area = 0, minx = W, maxx = -1, miny = H, maxy = -1;
+    while (sp > 0) {
+      var q = stack[--sp], x = q % W, y = (q - x) / W;
+      area++;
+      if (x < minx) minx = x; if (x > maxx) maxx = x;
+      if (y < miny) miny = y; if (y > maxy) maxy = y;
+      if (x > 0     && mask[q-1] && !seen[q-1]) { seen[q-1]=1; stack[sp++]=q-1; }
+      if (x < W - 1 && mask[q+1] && !seen[q+1]) { seen[q+1]=1; stack[sp++]=q+1; }
+      if (y > 0     && mask[q-W] && !seen[q-W]) { seen[q-W]=1; stack[sp++]=q-W; }
+      if (y < H - 1 && mask[q+W] && !seen[q+W]) { seen[q+W]=1; stack[sp++]=q+W; }
+    }
+    if (!best || area > best.area) best = { area:area, minx:minx, maxx:maxx, miny:miny, maxy:maxy };
+  }
+  return best;
+}
+function findLandBox(img) {
+  var W = img.width, H = img.height, d = img.data, i, p;
+  /* ١) البحر الأزرق */
+  var blue = new Uint8Array(W * H), blueCount = 0;
+  for (i = 0, p = 0; i < W * H; i++, p += 4) {
+    if (d[p+3] < 24) continue;
+    var hsv = rgb2hsv(d[p], d[p+1], d[p+2]);
+    if (hsv[0] > 172 && hsv[0] < 255 && hsv[1] > 0.22 && hsv[2] > 0.22) { blue[i] = 1; blueCount++; }
+  }
+  if (blueCount < W * H * 0.01) return null;
+  var sea = largestComponent(blue, W, H);
+  if (!sea || sea.area < W * H * 0.01) return null;
+  var bw = sea.maxx - sea.minx + 1, bh = sea.maxy - sea.miny + 1;
+  if (bw < 40 || bh < 40) return null;
+  /* ٢) اليابسة = أكبر مكوّن غير أزرق داخل صندوق البحر */
+  var land = new Uint8Array(W * H);
+  for (var y = sea.miny; y <= sea.maxy; y++) {
+    for (var x = sea.minx; x <= sea.maxx; x++) {
+      var idx = y * W + x;
+      if (!blue[idx] && d[idx*4+3] >= 24) land[idx] = 1;
+    }
+  }
+  var lb = largestComponent(land, W, H);
+  if (!lb || lb.area < sea.area * 0.05) return null;
+  var lw = lb.maxx - lb.minx + 1, lh = lb.maxy - lb.miny + 1;
+  if (lw < 30 || lh < 30) return null;
+  /* اليابسة يجب أن تكون داخل البحر لا ملاصقة لحوافه الخارجية */
+  return { x0:lb.minx, y0:lb.miny, x1:lb.maxx, y1:lb.maxy, w:lw, h:lh,
+           cx:(lb.minx + lb.maxx) / 2, cy:(lb.miny + lb.maxy) / 2, sea:sea };
+}
+/* عيّنة سريعة: نقاط قليلة على دائرة بدل مسح قرص كامل */
+function ringColor(img, cx, cy, r, n) {
+  var W = img.width, H = img.height, dd = img.data;
+  var rs = [], gs = [], bs = [];
+  for (var i = 0; i < n; i++) {
+    var a = (i / n) * Math.PI * 2;
+    var x = Math.round(cx + r * Math.cos(a)), y = Math.round(cy + r * Math.sin(a));
+    if (x < 0 || y < 0 || x >= W || y >= H) continue;
+    var p = (y * W + x) * 4;
+    if (dd[p+3] < 24) continue;
+    rs.push(dd[p]); gs.push(dd[p+1]); bs.push(dd[p+2]);
+  }
+  if (rs.length < 3) return null;
+  return { r: median(rs), g: median(gs), b: median(bs) };
+}
+/* «رمليّة» نقطة: قربها من لون إطارات البلاطات */
+function makeSandTest(img, centers, d) {
+  var samples = [], i, j;
+  for (i = 0; i < centers.length; i++) {
+    for (j = i + 1; j < centers.length; j++) {
+      var dx = centers[i].x - centers[j].x, dy = centers[i].y - centers[j].y;
+      if (Math.hypot(dx, dy) > d * 1.25) continue;
+      var mx = (centers[i].x + centers[j].x) / 2, my = (centers[i].y + centers[j].y) / 2;
+      var c = ringColor(img, mx, my, Math.max(1, d * 0.04), 8);
+      if (c) samples.push([c.r, c.g, c.b]);
+    }
+  }
+  if (samples.length < 6) return null;
+  var rs = [], gs = [], bs = [];
+  for (i = 0; i < samples.length; i++) { rs.push(samples[i][0]); gs.push(samples[i][1]); bs.push(samples[i][2]); }
+  return rgb2lab(median(rs), median(gs), median(bs));
+}
+function gridScore(img, rows, cx, cy, d, sandLab) {
+  var centers = gridCenters(rows, cx, cy, d), i, j;
+  var sCenter = 0, nCenter = 0, sEdge = 0, nEdge = 0;
+  for (i = 0; i < centers.length; i++) {
+    var c = ringColor(img, centers[i].x, centers[i].y, d * 0.34, 16);
+    if (!c) continue;
+    nCenter++;
+    if (dLab(rgb2lab(c.r, c.g, c.b), sandLab) < 18) sCenter++;
+  }
+  for (i = 0; i < centers.length; i++) for (j = i + 1; j < centers.length; j++) {
+    var dx = centers[i].x - centers[j].x, dy = centers[i].y - centers[j].y;
+    if (Math.hypot(dx, dy) > d * 1.25) continue;
+    var e = ringColor(img, (centers[i].x + centers[j].x) / 2, (centers[i].y + centers[j].y) / 2,
+                      Math.max(1, d * 0.05), 8);
+    if (!e) continue;
+    nEdge++;
+    if (dLab(rgb2lab(e.r, e.g, e.b), sandLab) < 18) sEdge++;
+  }
+  if (!nCenter || !nEdge) return -1e9;
+  return (sEdge / nEdge) - (sCenter / nCenter);
+}
+function detectByLand(img, noDesert) {
+  var box = findLandBox(img);
+  if (!box) return { ok:false, reason:'land', tiles:[] };
+  var best = null, pi;
+  for (pi = 0; pi < ROW_PATTERNS.length; pi++) {
+    var rows = ROW_PATTERNS[pi], ps = patternSize(rows);
+    var dw = box.w / ps.w, dh = box.h / ps.h;
+    /* لا نقبل النمط إن تباعد التقديران كثيراً */
+    var ratio = dw / dh;
+    if (ratio < 0.82 || ratio > 1.22) continue;
+    var d0 = (dw + dh) / 2;
+    if (d0 < 12) continue;
+    var centers0 = gridCenters(rows, box.cx, box.cy, d0);
+    var sandLab = makeSandTest(img, centers0, d0);
+    if (!sandLab) continue;
+    /* ضبط دقيق: نبحث عن أفضل مركز ومقياس */
+    var bestLocal = null, k, m, n;
+    for (k = -2; k <= 2; k++) {
+      var dTry = d0 * (1 + k * 0.035);
+      for (m = -1; m <= 1; m++) for (n = -1; n <= 1; n++) {
+        var cxT = box.cx + m * dTry * 0.12, cyT = box.cy + n * dTry * 0.12;
+        var sc = gridScore(img, rows, cxT, cyT, dTry, sandLab);
+        if (!bestLocal || sc > bestLocal.score) bestLocal = { score:sc, cx:cxT, cy:cyT, d:dTry, rows:rows };
+      }
+    }
+    if (!bestLocal) continue;
+    if (!best || bestLocal.score > best.score) best = bestLocal;
+  }
+  if (!best || best.score < 0.25) return { ok:false, reason:'landfit', tiles:[] };
+
+  var centers = gridCenters(best.rows, best.cx, best.cy, best.d);
+  var tiles = [], i;
+  for (i = 0; i < centers.length; i++) {
+    tiles.push({ a:centers[i].a, b:centers[i].b, x:centers[i].x, y:centers[i].y,
+                 hasToken:false, tokenR:null });
+  }
+  /* من لديه قرص رقم قديم؟ نستخدم قناع السطوع لتمييز الصحراء */
+  var mask = buildTokenMask(img, 0.62, 0.45);
+  for (i = 0; i < tiles.length; i++) {
+    var hit = 0, tot = 0, rr = best.d * 0.16;
+    for (var yy = Math.round(tiles[i].y - rr); yy <= tiles[i].y + rr; yy++) {
+      for (var xx = Math.round(tiles[i].x - rr); xx <= tiles[i].x + rr; xx++) {
+        if (xx < 0 || yy < 0 || xx >= img.width || yy >= img.height) continue;
+        if (Math.hypot(xx - tiles[i].x, yy - tiles[i].y) > rr) continue;
+        tot++; if (mask[yy * img.width + xx]) hit++;
+      }
+    }
+    tiles[i].brightCore = tot ? hit / tot : 0;
+  }
+  /* القرص فاتح لكن الرقم الداكن بداخله يقطعه، فتكون نسبة اللبّ الفاتح متوسطة.
+     الصحراء فاتحة بالكامل بلا رقم فتقترب نسبتها من ١، والبلاطة الداكنة بلا قرص تقترب من ٠. */
+  for (i = 0; i < tiles.length; i++) {
+    tiles[i].hasToken = tiles[i].brightCore > 0.25 && tiles[i].brightCore < 0.88;
+  }
+  classifyTiles(img, tiles, best.d, mask, best.d * 0.26, noDesert);
+  tiles.sort(function (p, q) { return (p.y - q.y) || (p.x - q.x); });
+  return { ok:true, tiles:tiles, d:best.d, tokenRadius:best.d * 0.26,
+           lattice:{ O:{x:best.cx,y:best.cy}, V1:{x:best.d,y:0},
+                     V2:{x:best.d/2,y:best.d*Math.sqrt(3)/2}, d:best.d, error:0 },
+           landScore:best.score, rows:best.rows, method:'land', added:0 };
+}
+
 /* عتبة سطوع نسبية: تتكيّف مع الصور المعتمة أو الساطعة جداً */
 function brightPercentile(img, frac) {
   var d = img.data, n = img.width * img.height, hist = new Uint32Array(101), cnt = 0;
@@ -858,7 +1056,15 @@ function analyzeBest(img, noDesert) {
       if (!r.hexMode) best = r;
     } else if (r.lattice.error < best.lattice.error) best = r;
   }
-  return best || { ok:false, reason:'tokens', tiles:[] };
+  /* الطريقة الثانية كاحتياط أو كبديل أفضل */
+  var byLand = null;
+  try { byLand = detectByLand(img, noDesert); } catch (e) { byLand = null; }
+  if (byLand && byLand.ok) {
+    if (!best) return byLand;
+    /* نفضّل الطريقة التي تعطي بلاطات أكثر بفارق معتبر */
+    if (byLand.tiles.length > best.tiles.length * 1.15) return byLand;
+  }
+  return best || (byLand && byLand.ok ? byLand : { ok:false, reason:'tokens', tiles:[] });
 }
 
 /* ---------- محرك توزيع الأرقام ---------- */
@@ -1067,6 +1273,7 @@ return {
   latticeToPoint:latticeToPoint, pointToLattice:pointToLattice,
   sampleColor:sampleColor, completeBoard:completeBoard, classifyTiles:classifyTiles,
   analyzeImage:analyzeImage, analyzeBest:analyzeBest, MASK_PRESETS:MASK_PRESETS,
+  detectByLand:detectByLand, findLandBox:findLandBox, ROW_PATTERNS:ROW_PATTERNS,
   buildAdjacency:buildAdjacency, tierSlots:tierSlots,
   assignNumbers:assignNumbers, checkRules:checkRules
 };
@@ -1228,6 +1435,15 @@ function detect() {
                  hasToken:!!t.hasToken, tokenR:(t.tokenR || res.tokenRadius) / sc };
       });
       S.result = null; S.assign = null; S.sel = -1;
+      $('diag').textContent = 'img ' + S.origW + 'x' + S.origH +
+        ' | work ' + S.work.width + 'x' + S.work.height +
+        ' | method ' + (res.method || 'tokens') +
+        ' | tiles ' + res.tiles.length +
+        ' | d ' + S.d.toFixed(1) +
+        ' | tokenR ' + S.tokenR.toFixed(1) +
+        (res.preset ? ' | preset ' + res.preset.map(function(x){return x.toFixed(2);}).join(',') : '') +
+        (res.landScore !== undefined ? ' | landScore ' + res.landScore.toFixed(2) : '') +
+        (res.lattice && res.lattice.error !== undefined ? ' | err ' + res.lattice.error.toFixed(2) : '');
       var turned = applyDesertRule(S.tiles);
       var extra = turned
         ? ' وحوّلتُ بلاطة الصحراء إلى <b>طوب</b> فستأخذ رقماً.'
@@ -1237,6 +1453,9 @@ function detect() {
       $('applyRow').hidden = true; S.lastFix = null;
     } else {
       S.tiles = []; S.result = null; S.assign = null;
+      $('diag').textContent = 'img ' + S.origW + 'x' + S.origH +
+        ' | work ' + S.work.width + 'x' + S.work.height +
+        ' | FAILED ' + (res.reason || '?');
       note('warn', '⚠️ لم أستطع قراءة الخريطة تلقائياً من هذه الصورة.<br>' +
         'افتح <b>«⚙️ إعدادات متقدمة»</b> بالأسفل ثم اضغط <b>«⚙️ شبكة يدوية»</b> ' +
         'واضبط الحجم والموضع حتى تنطبق الشبكة على الخريطة.');
