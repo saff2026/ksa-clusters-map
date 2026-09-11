@@ -1290,8 +1290,9 @@ function assignNumbers(tiles, opts) {
         var p0 = PAIRS[pi][0], p1 = PAIRS[pi][1];
         if (pick[p0] !== undefined && pick[p1] !== undefined && pick[p0] === pick[p1]) pen += 1000;
       }
+      /* توازن صارم بين رقمي كل حظ: مع أربع تضاريس في الحظ ٤ يعني ٢ من ١١ و٢ من ٣ */
       var imb = Math.abs(cA - cB);
-      pen += imb * imb * 3;
+      pen += imb * imb * 120;
       for (var j2 = 0; j2 < k; j2++) pen += 2.5 * hist[singles[j2]][pick[singles[j2]]];
       /* لا نكرر تشارك نفس الرقم بين نفس التضاريس في كل الحظوظ */
       for (var u = 0; u < k; u++) for (var v = u + 1; v < k; v++) {
@@ -1472,6 +1473,24 @@ function checkRules(res, tiles) {
     }
   }
   if (pairOk) oks.push('الشجر ≠ الطوب، والقمح ≠ الحجر في كل الحظوظ.');
+  /* عدد مرات كل رقم */
+  var freq = {}, allNums = [];
+  for (i = 0; i < res.order.length; i++) {
+    var ns = res.numbersOf[res.order[i]];
+    for (var f = 0; f < ns.length; f++) { freq[ns[f]] = (freq[ns[f]] || 0) + 1; allNums.push(ns[f]); }
+  }
+  var balanced = true;
+  for (var tt2 = 0; tt2 < 4; tt2++) {
+    var a1 = freq[TIERS[tt2].nums[0]] || 0, b1 = freq[TIERS[tt2].nums[1]] || 0;
+    if (Math.abs(a1 - b1) > 1) {
+      balanced = false;
+      issues.push('عدد ' + TIERS[tt2].nums[0] + ' هو ' + a1 + ' وعدد ' + TIERS[tt2].nums[1] +
+                  ' هو ' + b1 + ' — غير متوازنين.');
+    }
+  }
+  if (balanced) {
+    oks.push('رقما كل حظ متوازنان (' + (freq[3] || 0) + ' من ٣ و' + (freq[11] || 0) + ' من ١١).');
+  }
   var oneEach = issues.length === 0;
   if (oneEach) oks.push('كل تضاريس أخذت رقماً واحداً فقط من كل حظ.');
   return { rows:rows, issues:issues, oks:oks };
