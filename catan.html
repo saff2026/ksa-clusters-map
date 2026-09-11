@@ -247,6 +247,20 @@ var TIERS = [
 var PAIRS = [ ['wood','brick'], ['wheat','stone'] ];
 
 function pipsOf(n){ return 6 - Math.abs(7 - n); }
+function tierOfNum(n) {
+  for (var i = 0; i < TIERS.length; i++) {
+    if (TIERS[i].nums.indexOf(n) >= 0) return i;
+  }
+  return -1;
+}
+/* موارد تُبنى معاً: لا يجوز تجاور بلاطتيهما برقمين من نفس الحظ */
+function isBuildPair(a, b) {
+  for (var i = 0; i < PAIRS.length; i++) {
+    if ((PAIRS[i][0] === a && PAIRS[i][1] === b) ||
+        (PAIRS[i][1] === a && PAIRS[i][0] === b)) return true;
+  }
+  return false;
+}
 
 /* ---------- تحويلات الألوان ---------- */
 function rgb2hsv(r, g, b) {
@@ -1139,8 +1153,15 @@ function buildAdjacency(tiles) {
   }
   return adj;
 }
-function tierSlots(n, dropMode) {
+/* ترتيب الحظوظ الخاص بالخرفان: الحظ ٢ مرتين (٥ و٩)، ثم الحظ ٣، ثم الحظ ٤،
+   ولا تصل إلى الحظ ١ (٦ أو ٨) إلا إذا زادت بلاطاتها عن أربع. */
+var SHEEP_ORDER = [1, 1, 2, 3, 0, 0, 2, 3];
+function tierSlots(n, dropMode, terrainId) {
   var s = [], i;
+  if (terrainId === 'sheep') {
+    for (i = 0; i < n; i++) s.push(SHEEP_ORDER[i % SHEEP_ORDER.length]);
+    return s;
+  }
   if (n <= 4) {
     if (dropMode === 'strong') { for (i = 4 - n; i < 4; i++) s.push(i); }
     else { for (i = 0; i < n; i++) s.push(i); }
@@ -1168,7 +1189,7 @@ function assignNumbers(tiles, opts) {
   var slotsOf = {}, tierMembers = [[], [], [], []];
   for (i = 0; i < order.length; i++) {
     id = order[i];
-    var sl = tierSlots(groups[id].length, dropMode);
+    var sl = tierSlots(groups[id].length, dropMode, id);
     slotsOf[id] = sl;
     for (var s = 0; s < sl.length; s++) tierMembers[sl[s]].push(id);
   }
@@ -1248,6 +1269,9 @@ function assignNumbers(tiles, opts) {
         var n1 = assign[a], n2 = assign[bIdx];
         if (n1 == null || n2 == null) continue;
         var p1 = pipsOf(n1), p2 = pipsOf(n2);
+        /* الأهم: موردان يُبنى بهما معاً لا يتجاوران برقمين من نفس الحظ */
+        if (isBuildPair(tiles[a].terrain, tiles[bIdx].terrain) &&
+            tierOfNum(n1) === tierOfNum(n2)) sc += 300;
         if (n1 === n2) sc += 9;
         if (p1 === 5 && p2 === 5) sc += 14;
         else if (p1 >= 4 && p2 >= 4) sc += 5;
@@ -1256,27 +1280,46 @@ function assignNumbers(tiles, opts) {
     }
     return sc;
   }
-  var cur = score();
-  for (var it = 0; it < 9000; it++) {
-    id = order[Math.floor(rnd() * order.length)];
-    var gg = groups[id];
-    if (gg.length < 2) continue;
-    var i1 = Math.floor(rnd() * gg.length), i2 = Math.floor(rnd() * gg.length);
-    if (i1 === i2) continue;
-    var t1 = gg[i1], t2 = gg[i2];
-    if (assign[t1] === assign[t2]) continue;
-    var keep = assign[t1];
-    assign[t1] = assign[t2]; assign[t2] = keep;
-    var s2 = score();
-    if (s2 <= cur) { cur = s2; }
-    else { assign[t2] = assign[t1]; assign[t1] = keep; }
+  /* عدة محاولات من نقاط بداية مختلفة، ونحتفظ بأفضلها */
+  var bestAssign = assign.slice(), bestScore = 1e18;
+  for (var attempt = 0; attempt < 8; attempt++) {
+    if (attempt > 0) {
+      for (i = 0; i < order.length; i++) {
+        id = order[i];
+        var nums2 = numbersOf[id].slice();
+        for (var q3 = nums2.length - 1; q3 > 0; q3--) {
+          var w3 = Math.floor(rnd() * (q3 + 1));
+          var tmp3 = nums2[q3]; nums2[q3] = nums2[w3]; nums2[w3] = tmp3;
+        }
+        for (var g3 = 0; g3 < groups[id].length; g3++) assign[groups[id][g3]] = nums2[g3];
+      }
+    }
+    var cur = score();
+    for (var it = 0; it < 5000; it++) {
+      id = order[Math.floor(rnd() * order.length)];
+      var gg = groups[id];
+      if (gg.length < 2) continue;
+      var i1 = Math.floor(rnd() * gg.length), i2 = Math.floor(rnd() * gg.length);
+      if (i1 === i2) continue;
+      var t1 = gg[i1], t2 = gg[i2];
+      if (assign[t1] === assign[t2]) continue;
+      var keep = assign[t1];
+      assign[t1] = assign[t2]; assign[t2] = keep;
+      var s2 = score();
+      if (s2 <= cur) { cur = s2; }
+      else { assign[t2] = assign[t1]; assign[t1] = keep; }
+    }
+    if (cur < bestScore) { bestScore = cur; bestAssign = assign.slice(); }
+    if (bestScore < 1) break;
   }
+  assign = bestAssign;
+  var cur = bestScore;
   return { assign:assign, order:order, groups:groups, numbersOf:numbersOf,
            slotsOf:slotsOf, adjacency:adj, score:cur };
 }
 
 /* ---------- التحقق من القوانين ---------- */
-function checkRules(res) {
+function checkRules(res, tiles) {
   var rows = [], issues = [], oks = [], i, id;
   for (i = 0; i < res.order.length; i++) {
     id = res.order[i];
@@ -1284,12 +1327,44 @@ function checkRules(res) {
     var sl = res.slotsOf[id], nums = res.numbersOf[id];
     for (var j = 0; j < sl.length; j++) per[sl[j]].push(nums[j]);
     rows.push({ terrain:id, tiers:per, count:res.groups[id].length });
+    if (id === 'sheep') continue;   /* للخرفان قاعدة خاصة: ٥ و٩ معاً */
     for (var t = 0; t < 4; t++) {
       if (per[t].length > 1) {
         issues.push('تضاريس «' + terrainById(id).name + '» أخذت أكثر من رقم من ' + TIERS[t].name +
                     ' لأن عدد بلاطاتها ' + res.groups[id].length + ' (أكثر من ٤).');
       }
     }
+  }
+  /* قاعدة الخرفان */
+  if (res.numbersOf.sheep) {
+    var sn = res.numbersOf.sheep;
+    var hot = 0, k;
+    for (k = 0; k < sn.length; k++) if (tierOfNum(sn[k]) === 0) hot++;
+    if (sn.indexOf(5) >= 0 && sn.indexOf(9) >= 0 && hot === 0) {
+      oks.push('الخرفان أخذت ٥ و٩ معاً، ولم تأخذ ٦ ولا ٨.');
+    } else if (hot > 0) {
+      issues.push('الخرفان اضطرت لأخذ رقم من ' + TIERS[0].name + ' لأن بلاطاتها أكثر من أربع.');
+    }
+  }
+  /* الموارد المتلازمة لا تتجاور بنفس الحظ */
+  if (tiles && res.adjacency && res.assign) {
+    var bad = 0;
+    for (i = 0; i < tiles.length; i++) {
+      var nb = res.adjacency[i] || [];
+      for (var q = 0; q < nb.length; q++) {
+        var j2 = nb[q];
+        if (j2 < i) continue;
+        if (!isBuildPair(tiles[i].terrain, tiles[j2].terrain)) continue;
+        var n1 = res.assign[i], n2 = res.assign[j2];
+        if (n1 == null || n2 == null) continue;
+        if (tierOfNum(n1) === tierOfNum(n2)) {
+          bad++;
+          issues.push('«' + terrainById(tiles[i].terrain).name + ' ' + n1 + '» و«' +
+                      terrainById(tiles[j2].terrain).name + ' ' + n2 + '» متجاورتان بنفس الحظ.');
+        }
+      }
+    }
+    if (!bad) oks.push('لا يتجاور الطوب مع الشجر ولا الحجر مع القمح برقمين من نفس الحظ.');
   }
   var pairOk = true;
   for (var p = 0; p < PAIRS.length; p++) {
@@ -1715,7 +1790,7 @@ function assign(fresh) {
   S.result = CORE.assignNumbers(S.tiles, { dropMode:$('dropMode').value, seed:S.seed });
   S.assign = S.result.assign;
   S.sel = -1;
-  var chk = CORE.checkRules(S.result);
+  var chk = CORE.checkRules(S.result, S.tiles);
   if (chk.issues.length) {
     note('warn', '⚠️ وزّعتُ الأرقام، لكن هناك ملاحظة: ' + chk.issues[0] +
       '<br>افتح الإعدادات المتقدمة لرؤية جدول التحقق كاملاً.');
